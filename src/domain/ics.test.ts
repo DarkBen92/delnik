@@ -15,7 +15,7 @@ describe('ICS', () => {
     expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(3);
     expect(ics).toContain('DTSTART;VALUE=DATE:20261005');
     expect(ics).toContain('DTEND;VALUE=DATE:20261006');
-    expect(ics).toContain('SUMMARY:Весь день\; с запятой\\, да');
+    expect(ics).toContain('SUMMARY:Весь день\\; с запятой\\, да');
     expect(ics).toContain('DESCRIPTION:строка1\\nстрока2');
     expect(ics).toContain('DTSTART:20261006T093000');
     expect(ics).toContain('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=WE,FR;UNTIL=20261231');
