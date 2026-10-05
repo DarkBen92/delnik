@@ -234,8 +234,11 @@ fieldset.field { border-top: 1px solid var(--line); padding-top: .6rem; }
 .cals { list-style: none; margin: 0 0 .6rem; padding: 0; display: grid; gap: .4rem; }
 .cal-row { display: flex; gap: .4rem; align-items: center; }
 .cal-row input[type="color"], .custom-theme input[type="color"] { width: 2.2rem; height: 2.2rem; padding: 0; border: 1px solid var(--edge); border-radius: 8px; background: none; }
-.file-btn { display: inline-flex; gap: .4rem; align-items: center; }
-.file-btn input { max-width: 14rem; font-size: .85rem; }
+.file-btn { position: relative; display: inline-flex; align-items: center; cursor: pointer;
+  border: 1px solid var(--edge); border-radius: 8px; padding: .35rem .8rem; background: var(--paper); color: var(--text); }
+.file-btn:hover { background: var(--hover); }
+.file-btn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
 .confirm-box { background: var(--hover); border-radius: 8px; padding: .6rem .8rem; margin-top: .6rem; }
 .keys div { display: flex; gap: 1rem; padding: .3rem 0; border-bottom: 1px solid var(--line); }
 .keys dt { width: 6rem; } .keys dd { margin: 0; }

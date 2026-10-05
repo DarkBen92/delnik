@@ -244,7 +244,10 @@ export function Editor({ id, occDate }: { id: string; occDate: string | null }) 
             </li>
           ))}
         </ul>
-        <input type="file" multiple aria-label="Добавить вложение" onChange={(e) => { void addFiles(e.target.files); e.target.value = ''; }} />
+        <label className="file-btn">
+          <span>Прикрепить файл</span>
+          <input type="file" multiple aria-label="Добавить вложение" onChange={(e) => { void addFiles(e.target.files); e.target.value = ''; }} />
+        </label>
         <p className="muted">Файлы хранятся только в этом браузере, до 10 МБ каждый.</p>
       </fieldset>
 

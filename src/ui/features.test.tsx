@@ -149,7 +149,8 @@ describe('подсказки и пустые состояния', () => {
   it('AC-17 в поле новой задачи виден пример быстрого ввода', () => {
     render(<App />);
     const box = within(day(/понедельник, 5 октября 2026/)).getByRole('textbox', { name: 'Новая задача' });
-    expect(box).toHaveAttribute('placeholder', 'Например: завтра в 18:00 позвонить маме');
+    expect(box).toHaveAttribute('placeholder', 'Новая задача…');
+    expect(box).toHaveAttribute('title', 'Например: завтра в 18:00 позвонить маме');
   });
   it('AC-14 поиск без результатов подсказывает по-русски', async () => {
     const user = userEvent.setup();

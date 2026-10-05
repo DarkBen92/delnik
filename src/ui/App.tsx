@@ -97,13 +97,10 @@ function Shell() {
     st.mutate((d) => moveTask(d, a.taskId, target, index, a.recurring ? (a.date ?? undefined) : undefined));
   };
 
-  const overlay = useApp((s) => {
-    if (!activeId) return null;
-    const [, tid, date] = activeId.split(':');
-    const t = s.data.tasks.find((x) => x.id === tid);
-    if (!t) return null;
-    return { t, date: date || null };
-  });
+  // Селектор возвращает саму задачу (стабильная ссылка): новый объект на каждый вызов зацикливает рендер.
+  const [, activeTaskId, activeDate] = activeId ? activeId.split(':') : [];
+  const activeTask = useApp((s) => (activeTaskId ? s.data.tasks.find((x) => x.id === activeTaskId) : undefined));
+  const overlay = activeTask ? { t: activeTask, date: activeDate || null } : null;
 
   return (
     <DndContext sensors={sensors} collisionDetection={collision} onDragStart={onStart} onDragOver={onOver} onDragEnd={onEnd} onDragCancel={() => { stopNav(); setActiveId(null); }}>

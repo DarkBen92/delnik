@@ -9,7 +9,8 @@ export function NewTask({ target }: { target: AddTarget }) {
       type="text"
       className="new-task"
       aria-label="Новая задача"
-      placeholder="Например: завтра в 18:00 позвонить маме"
+      placeholder="Новая задача…"
+      title="Например: завтра в 18:00 позвонить маме"
       value={text}
       autoComplete="off"
       enterKeyHint="done"
