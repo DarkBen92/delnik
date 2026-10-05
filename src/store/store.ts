@@ -12,7 +12,9 @@ export type DialogState =
   | { kind: 'editor'; id: string; date: ISODate | null }
   | { kind: 'settings' }
   | { kind: 'stats' }
-  | { kind: 'help' };
+  | { kind: 'help' }
+  | { kind: 'menu' }
+  | { kind: 'month' };
 
 export interface Toast {
   id: number;
@@ -155,7 +157,8 @@ export function createAppStore(): AppStore {
       setStickerDay: (d) => set({ stickerDay: d }),
       setAnchor: (d) => set({ anchor: d }),
       setView: (v) => get().setSettings({ view: v }),
-      shift: (dir) => set((s) => ({ anchor: shiftAnchor(s.anchor, s.data.settings.view, dir) })),
+      // Основной вид — неделя (как в бумажном ежедневнике); месяц открывается боковой панелью.
+      shift: (dir) => set((s) => ({ anchor: shiftAnchor(s.anchor, 'week', dir) })),
       goToday: () => set((s) => ({ anchor: s.today })),
       tickDay: () => {
         const now = todayISO();

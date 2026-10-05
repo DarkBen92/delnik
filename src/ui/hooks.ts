@@ -88,11 +88,11 @@ export function useShortcuts(): void {
           return false;
         };
         if (!focusToday()) {
-          if (st.data.settings.view !== 'week') st.setView('week');
           st.goToday();
           setTimeout(focusToday, 30);
         }
       }
+      else if (e.code === 'KeyM' || lower === 'm' || lower === 'ь') { e.preventDefault(); st.openDialog({ kind: 'month' }); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

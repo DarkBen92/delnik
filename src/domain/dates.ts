@@ -105,3 +105,23 @@ export function weekRangeLabel(weekStart: ISODate): string {
   if (m1 !== m2) return `${d1} ${MONTHS_GEN[m1 - 1]} – ${d2} ${MONTHS_GEN[m2 - 1]} ${y2}`;
   return `${d1} – ${d2} ${MONTHS_GEN[m2 - 1]} ${y2}`;
 }
+
+/** Номер недели по ISO 8601 (неделя с понедельника, первая неделя содержит 4 января). */
+export function isoWeekNumber(s: ISODate): number {
+  const thursday = addDays(s, 4 - isoWeekday(s));
+  const jan1 = `${thursday.slice(0, 4)}-01-01`;
+  return Math.floor(diffDays(jan1, thursday) / 7) + 1;
+}
+
+const MONTHS_SHORT_GEN = ['янв.', 'февр.', 'мар.', 'апр.', 'мая', 'июн.', 'июл.', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.'];
+const MONTHS_SHORT_NOM = ['Янв.', 'Февр.', 'Март', 'Апр.', 'Май', 'Июнь', 'Июль', 'Авг.', 'Сент.', 'Окт.', 'Нояб.', 'Дек.'];
+
+/** «5 окт.», «1 мая». */
+export function dayMonthShort(s: ISODate): string {
+  return `${Number(s.slice(8, 10))} ${MONTHS_SHORT_GEN[Number(s.slice(5, 7)) - 1]}`;
+}
+
+/** «Окт. 2026» — для узкой шапки. */
+export function monthYearShort(s: ISODate): string {
+  return `${MONTHS_SHORT_NOM[Number(s.slice(5, 7)) - 1]} ${s.slice(0, 4)}`;
+}

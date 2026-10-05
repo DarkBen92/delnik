@@ -66,3 +66,21 @@ describe('dates', () => {
     expect(weekRangeLabel('2025-12-29')).toBe('29 декабря 2025 – 4 января 2026');
   });
 });
+
+describe('week numbers and short labels', () => {
+  it('computes ISO week numbers', async () => {
+    const { isoWeekNumber } = await import('./dates');
+    expect(isoWeekNumber('2026-10-05')).toBe(41);
+    expect(isoWeekNumber('2026-01-01')).toBe(1);
+    expect(isoWeekNumber('2027-01-01')).toBe(53);
+    expect(isoWeekNumber('2025-12-29')).toBe(1);
+  });
+
+  it('formats short day and month', async () => {
+    const { dayMonthShort, monthYearShort } = await import('./dates');
+    expect(dayMonthShort('2026-10-05')).toBe('5 окт.');
+    expect(dayMonthShort('2026-05-01')).toBe('1 мая');
+    expect(monthYearShort('2026-10-05')).toBe('Окт. 2026');
+    expect(monthYearShort('2026-05-05')).toBe('Май 2026');
+  });
+});

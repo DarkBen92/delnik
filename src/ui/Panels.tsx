@@ -1,57 +1,63 @@
-import { useState } from 'react';
-import { formatRu, startOfWeek, weekDates, weekdayShortRu, isoWeekday } from '../domain/dates';
-import { searchTasks, weekStats } from '../domain/tasks';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { formatRu, startOfWeek, weekRangeLabel } from '../domain/dates';
+import { searchTasks, setSticker, weekStats } from '../domain/tasks';
 import { useApp, useAppStore } from '../store/store';
 import { Dialog } from './Dialog';
-import { STICKERS } from './util';
-import { setSticker } from '../domain/tasks';
+import { IconClose, IconSearch } from './icons';
+import { STICKERS, plural } from './util';
 
 export function SearchPanel() {
   const store = useAppStore();
   const data = useApp((s) => s.data);
   const [q, setQ] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => { input.current?.focus(); }, []);
   const cal = data.settings.activeCalendarId;
-  const results = q.trim() ? searchTasks(data, q, cal) : [];
+  const results = useMemo(() => searchTasks(data, q, cal), [data, q, cal]);
+  const listName = (id: string | null) => data.lists.find((l) => l.id === id)?.title ?? 'Список';
   const close = () => store.getState().setSearchOpen(false);
   return (
-    <div className="search-panel no-print" role="search">
-      <input
-        type="search"
-        role="searchbox"
-        aria-label="Поиск по задачам"
-        placeholder="Название, заметка или подзадача"
-        autoFocus
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
-      <button type="button" className="icon-btn" aria-label="Закрыть поиск" onClick={close}>×</button>
-      {!q.trim() && <p className="empty-hint">Введите слово — найдём среди всех дат и списков.</p>}
-      {q.trim() && results.length === 0 && <p className="empty-hint">Ничего не найдено</p>}
-      {results.length > 0 && (
-        <ul className="results" aria-label="Результаты поиска">
-          {results.map((t) => {
-            const list = t.listId ? data.lists.find((l) => l.id === t.listId) : null;
-            return (
-              <li key={t.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const st = store.getState();
-                    if (t.date) {
-                      st.setAnchor(t.date);
-                      if (st.data.settings.view !== 'week') st.setView('week');
-                    }
-                    st.openEditor(t.id, t.date);
-                  }}
-                >
-                  <span className="r-title">{t.title}</span>
-                  <span className="r-where">{t.date ? formatRu(t.date, 'full') : `Список «${list?.title ?? '—'}»`}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+    <div className="overlay top-align" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
+      <div className="search" role="search">
+        <div className="search-bar">
+          <IconSearch />
+          <input
+            ref={input}
+            type="search"
+            aria-label="Поиск задач"
+            placeholder="Найти задачу"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') close(); }}
+          />
+          <button type="button" className="tool" aria-label="Закрыть поиск" onClick={close}><IconClose size={18} /></button>
+        </div>
+        {q.trim() !== '' && (
+          results.length === 0
+            ? <p className="search-empty">Ничего не нашлось. Попробуйте другое слово.</p>
+            : (
+              <ul className="search-results" aria-label="Результаты поиска">
+                {results.slice(0, 50).map((t) => (
+                  <li key={t.id}>
+                    <button
+                      type="button"
+                      className={t.done ? 'is-done' : ''}
+                      onClick={() => {
+                        const st = store.getState();
+                        if (t.date) st.setAnchor(t.date);
+                        close();
+                        st.openEditor(t.id, t.date);
+                      }}
+                    >
+                      <span className="sr-title">{t.title}</span>
+                      <span className="sr-when">{t.date ? formatRu(t.date, 'dayMonth') : listName(t.listId)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )
+        )}
+      </div>
     </div>
   );
 }
@@ -61,49 +67,45 @@ export function StatsDialog() {
   const data = useApp((s) => s.data);
   const anchor = useApp((s) => s.anchor);
   const today = useApp((s) => s.today);
-  const cal = data.settings.activeCalendarId;
-  const start = startOfWeek(anchor);
-  const st = weekStats(data, cal, start, today);
-  const pct = st.total ? Math.round((st.done / st.total) * 100) : 0;
-  const overdue = data.tasks.filter((t) => t.calendarId === cal && !t.recurrence && !t.done && t.date !== null && t.date < today).length;
-  const max = Math.max(1, ...st.byDay.map((d) => d.total));
+  const ws = startOfWeek(anchor);
+  const stats = weekStats(data, data.settings.activeCalendarId, ws, today);
+  const pct = stats.total ? Math.round((stats.done / stats.total) * 100) : 0;
+  const overdue = data.tasks.filter((t) => !t.recurrence && !t.done && t.date !== null && t.date < today).length;
+  const max = Math.max(1, ...stats.byDay.map((d) => d.total));
   return (
     <Dialog label="Итоги недели" onClose={() => store.getState().closeDialog()}>
-      <p className="muted">{formatRu(start, 'dayMonth')} — {formatRu(weekDates(start)[6], 'dayMonth')}</p>
-      <p className="big">Выполнено: {st.done} из {st.total}</p>
+      <p className="muted">{weekRangeLabel(ws)}</p>
+      <p className="big">Выполнено {stats.done} из {stats.total}</p>
       <div className="progress" role="progressbar" aria-label="Выполнено за неделю" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
-        <div className="progress-fill" style={{ width: `${pct}%` }} />
+        <span style={{ width: `${pct}%` }} />
       </div>
-      <ul className="bars" aria-label="По дням">
-        {st.byDay.map((d) => (
-          <li key={d.date} data-testid="stats-day" title={`${formatRu(d.date, 'dayMonth')}: ${d.done} из ${d.total}`}>
-            <span className="bar"><span className="bar-total" style={{ height: `${(d.total / max) * 100}%` }}><span className="bar-done" style={{ height: d.total ? `${(d.done / d.total) * 100}%` : 0 }} /></span></span>
-            <span className="bar-label">{weekdayShortRu(isoWeekday(d.date))}</span>
-          </li>
+      <div className="bars">
+        {stats.byDay.map((d) => (
+          <div key={d.date} className="bar" data-testid="stats-day" title={`${formatRu(d.date, 'dayMonth')}: ${d.done} из ${d.total}`}>
+            <div className="bar-track">
+              <span className="bar-total" style={{ height: `${(d.total / max) * 100}%` }} />
+              <span className="bar-done" style={{ height: `${(d.done / max) * 100}%` }} />
+            </div>
+            <span className="bar-label">{formatRu(d.date, 'weekdayShort')}</span>
+          </div>
         ))}
-      </ul>
-      <p>Серия без хвостов: <strong>{st.streak}</strong> {plural(st.streak, 'день', 'дня', 'дней')}</p>
-      <button type="button" className="btn primary" disabled={overdue === 0} onClick={() => store.getState().doRollover(true)}>
+      </div>
+      <p>Серия без хвостов: <b>{stats.streak}</b> {plural(stats.streak, ['день', 'дня', 'дней'])}</p>
+      <button type="button" className="pill-btn wide" disabled={overdue === 0} onClick={() => store.getState().doRollover(true)}>
         Перенести хвосты на сегодня ({overdue})
       </button>
-      {overdue === 0 && <p className="muted">Просроченных задач нет.</p>}
+      <p className="muted small">{overdue === 0 ? 'Просроченных задач нет.' : 'Невыполненные задачи прошлых дней переедут на сегодня.'}</p>
     </Dialog>
   );
 }
 
-function plural(n: number, a: string, b: string, c: string): string {
-  const m10 = n % 10, m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return a;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return b;
-  return c;
-}
-
 const KEYS: [string, string][] = [
-  ['← / →', 'Предыдущий / следующий период'],
-  ['T', 'Перейти к сегодня'],
+  ['← →', 'Предыдущая и следующая неделя'],
+  ['T', 'Вернуться к сегодняшнему дню'],
   ['N', 'Новая задача на сегодня'],
   ['/', 'Поиск'],
-  ['?', 'Эта справка'],
+  ['M', 'Календарь на месяц'],
+  ['?', 'Эта подсказка'],
   ['Esc', 'Закрыть окно'],
 ];
 
@@ -112,11 +114,27 @@ export function HelpDialog() {
   return (
     <Dialog label="Горячие клавиши" onClose={() => store.getState().closeDialog()}>
       <dl className="keys">
-        {KEYS.map(([k, d]) => (
-          <div key={k}><dt><kbd>{k}</kbd></dt><dd>{d}</dd></div>
-        ))}
+        {KEYS.map(([k, v]) => <div key={k}><dt><kbd>{k}</kbd></dt><dd>{v}</dd></div>)}
       </dl>
-      <p className="muted">Подсказка: в поле задачи можно писать «каждый понедельник планёрка» или «в пятницу !красный».</p>
+      <p className="muted small">
+        Быстрый ввод понимает русский: «завтра в 18:00 позвонить маме», «каждую среду бассейн», «по будням стендап в 10:00 !синий».
+      </p>
+    </Dialog>
+  );
+}
+
+export function ShareConfirm() {
+  const store = useAppStore();
+  const snap = useApp((s) => s.pendingShare);
+  if (!snap) return null;
+  const n = snap.tasks.length;
+  return (
+    <Dialog label="Календарь по ссылке" onClose={() => store.getState().cancelShare()}>
+      <p>Добавить календарь «{snap.calendar.name}» ({n} {plural(n, ['задача', 'задачи', 'задач'])})?</p>
+      <div className="btn-row">
+        <button type="button" className="pill-btn dark" onClick={() => store.getState().confirmShare()}>Добавить</button>
+        <button type="button" className="pill-btn" onClick={() => store.getState().cancelShare()}>Отмена</button>
+      </div>
     </Dialog>
   );
 }
@@ -131,52 +149,33 @@ export function StickerPicker() {
     store.getState().setStickerDay(null);
   };
   return (
-    <div className="overlay no-print" onMouseDown={(e) => { if (e.target === e.currentTarget) store.getState().setStickerDay(null); }}>
-      <div className="sticker-pop" role="group" aria-label={`Стикер на ${formatRu(day, 'dayMonth')}`}>
-        <div className="sticker-grid">
-          {STICKERS.map((e) => <button key={e} type="button" aria-label={e} onClick={() => pick(e)}>{e}</button>)}
-        </div>
-        <button type="button" className="btn" onClick={() => pick(null)}>Убрать</button>
+    <Dialog label={`Стикер на ${formatRu(day, 'dayMonth')}`} onClose={() => store.getState().setStickerDay(null)}>
+      <div className="stickers">
+        {STICKERS.map((s) => <button key={s} type="button" aria-label={s} onClick={() => pick(s)}>{s}</button>)}
       </div>
-    </div>
-  );
-}
-
-export function ShareConfirm() {
-  const store = useAppStore();
-  const snap = useApp((s) => s.pendingShare);
-  if (!snap) return null;
-  return (
-    <Dialog label="Импорт календаря" onClose={() => store.getState().cancelShare()}>
-      <p>{`Добавить календарь «${snap.calendar.name}» (${snap.tasks.length} задач)?`}</p>
-      <div className="row">
-        <button type="button" className="btn primary" onClick={() => store.getState().confirmShare()}>Добавить</button>
-        <button type="button" className="btn" onClick={() => store.getState().cancelShare()}>Отмена</button>
-      </div>
+      <button type="button" className="link-btn" onClick={() => pick(null)}>Убрать</button>
     </Dialog>
   );
 }
 
 export function Toasts() {
-  const toasts = useApp((s) => s.toasts);
   const store = useAppStore();
-  return (
-    <div className="toasts no-print" role="status" aria-live="polite">
-      {toasts.map((t) => <ToastItem key={t.id} id={t.id} text={t.text} tone={t.tone} onDone={(i) => store.getState().dismissToast(i)} />)}
-    </div>
-  );
-}
-
-import { useEffect } from 'react';
-function ToastItem({ id, text, tone, onDone }: { id: number; text: string; tone: string; onDone: (id: number) => void }) {
+  const toasts = useApp((s) => s.toasts);
   useEffect(() => {
-    const h = setTimeout(() => onDone(id), tone === 'error' ? 8000 : 5000);
+    if (toasts.length === 0) return undefined;
+    const h = setTimeout(() => store.getState().dismissToast(toasts[0].id), 4000);
     return () => clearTimeout(h);
-  }, [id, tone, onDone]);
+  }, [toasts, store]);
   return (
-    <div className={`toast ${tone}`}>
-      <span>{text}</span>
-      <button type="button" className="icon-btn small" aria-label="Скрыть уведомление" onClick={() => onDone(id)}>×</button>
+    <div className="toasts" role="status" aria-live="polite">
+      {toasts.map((t) => (
+        <div key={t.id} className={`toast ${t.tone}`}>
+          <span>{t.text}</span>
+          <button type="button" className="tool" aria-label="Скрыть уведомление" onClick={() => store.getState().dismissToast(t.id)}>
+            <IconClose size={14} />
+          </button>
+        </div>
+      ))}
     </div>
   );
 }

@@ -44,12 +44,12 @@ export function FocusTimer() {
       <div className="focus-mode">{mode === 'work' ? 'Работа' : 'Перерыв'}</div>
       <div className="focus-title">{focus.title}</div>
       <div className="focus-time">{fmt(left)}</div>
-      <div className="row">
+      <div className="btn-row">
         {running
-          ? <button type="button" className="btn" onClick={() => setRunning(false)}>Пауза</button>
-          : <button type="button" className="btn primary" onClick={start}>Старт</button>}
-        <button type="button" className="btn" onClick={() => { setRunning(false); setLeft(mode === 'work' ? WORK : BREAK); }}>Сброс</button>
-        <button type="button" className="btn" onClick={() => store.getState().setFocus(null)} aria-label="Закрыть таймер">Закрыть</button>
+          ? <button type="button" className="pill-btn" onClick={() => setRunning(false)}>Пауза</button>
+          : <button type="button" className="pill-btn dark" onClick={start}>Старт</button>}
+        <button type="button" className="pill-btn" onClick={() => { setRunning(false); setLeft(mode === 'work' ? WORK : BREAK); }}>Сброс</button>
+        <button type="button" className="pill-btn" onClick={() => store.getState().setFocus(null)} aria-label="Закрыть таймер">Закрыть</button>
       </div>
     </div>
   );

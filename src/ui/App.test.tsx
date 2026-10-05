@@ -1,114 +1,148 @@
-import { render, screen, within, act } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from './App';
+import { seed, task } from './testSeed';
+import { day, freezeToday, monday, newTaskIn } from './testUtil';
 
-const day = (name: RegExp) => screen.getByRole('region', { name });
+beforeEach(freezeToday);
+afterEach(() => vi.useRealTimers());
 
-beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['Date'] });
-  vi.setSystemTime(new Date(2026, 9, 5, 12, 0)); // пн 5 октября 2026
-});
-afterEach(() => {
-  vi.useRealTimers();
-});
-
-describe('Дельник: недельный вид', () => {
-  it('AC-01 shows Monday-first week in Russian with today marked', () => {
+describe('неделя', () => {
+  it('показывает месяц с номером недели и дни Пн–Вс, сегодня отмечено', () => {
     render(<App />);
-    expect(screen.getByRole('heading', { name: '5 – 11 октября 2026' })).toBeInTheDocument();
-    const mon = day(/понедельник, 5 октября 2026/);
-    expect(mon).toHaveAttribute('aria-current', 'date');
-    expect(day(/воскресенье, 11 октября 2026/)).not.toHaveAttribute('aria-current');
-    const regions = screen.getAllByRole('region').map((r) => r.getAttribute('aria-label'));
-    expect(regions.indexOf('понедельник, 5 октября 2026')).toBeLessThan(regions.indexOf('воскресенье, 11 октября 2026'));
+    expect(screen.getByRole('heading', { level: 1, name: /Октябрь 2026, неделя 41/ })).toBeInTheDocument();
+    expect(monday()).toHaveAttribute('aria-current', 'date');
+    expect(within(monday()).getByText('5 окт.')).toBeInTheDocument();
+    const names = screen.getAllByRole('region').map((r) => r.getAttribute('aria-label'));
+    expect(names.slice(0, 7)).toEqual([
+      'понедельник, 5 октября 2026', 'вторник, 6 октября 2026', 'среда, 7 октября 2026', 'четверг, 8 октября 2026',
+      'пятница, 9 октября 2026', 'суббота, 10 октября 2026', 'воскресенье, 11 октября 2026',
+    ]);
   });
 
-  it('AC-01 navigates weeks', async () => {
+  it('листает недели стрелками и возвращается ссылкой «сегодня»', async () => {
     const user = userEvent.setup();
     render(<App />);
+    expect(screen.queryByRole('button', { name: 'сегодня' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Следующая неделя' }));
-    expect(screen.getByRole('heading', { name: '12 – 18 октября 2026' })).toBeInTheDocument();
+    expect(day(/понедельник, 12 октября 2026/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /неделя 42/ })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Предыдущая неделя' }));
     await user.click(screen.getByRole('button', { name: 'Предыдущая неделя' }));
-    expect(screen.getByRole('heading', { name: '28 сентября – 4 октября 2026' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Сегодня' }));
-    expect(screen.getByRole('heading', { name: '5 – 11 октября 2026' })).toBeInTheDocument();
+    expect(day(/понедельник, 28 сентября 2026/)).toBeInTheDocument();
+    // неделя 28.09–4.10: четверг 1 октября — значит «Октябрь»
+    expect(screen.getByRole('heading', { level: 1, name: /Октябрь 2026, неделя 40/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'сегодня' }));
+    expect(monday()).toHaveAttribute('aria-current', 'date');
   });
 
-  it('AC-03/04/16 adds a task, completes it and keeps it after reload', async () => {
+  it('добавляет задачу вводом на линейке, отмечает и помнит после перезагрузки', async () => {
     const user = userEvent.setup();
     const { unmount } = render(<App />);
-    const mon = day(/понедельник, 5 октября 2026/);
-    await user.type(within(mon).getByRole('textbox', { name: 'Новая задача' }), 'Купить хлеб{Enter}');
-    const box = within(mon).getByRole('checkbox', { name: 'Купить хлеб' });
-    expect(box).not.toBeChecked();
+    const input = newTaskIn(monday());
+    await user.type(input, 'Купить хлеб{Enter}');
+    expect(input).toHaveValue('');
+    expect(input).toHaveFocus();
+    const box = within(monday()).getByRole('checkbox', { name: 'Купить хлеб' });
+    expect(box).toHaveAttribute('aria-checked', 'false');
     await user.click(box);
-    expect(within(mon).getByRole('checkbox', { name: 'Купить хлеб' })).toBeChecked();
+    expect(within(monday()).getByRole('checkbox', { name: 'Купить хлеб' })).toHaveAttribute('aria-checked', 'true');
     unmount();
     render(<App />);
-    expect(within(day(/понедельник, 5 октября 2026/)).getByRole('checkbox', { name: 'Купить хлеб' })).toBeChecked();
+    expect(within(monday()).getByRole('checkbox', { name: 'Купить хлеб' })).toHaveAttribute('aria-checked', 'true');
   });
 
-  it('AC-17 quick input understands Russian dates and times', async () => {
+  it('клик по пустым линиям дня ставит курсор в строку ввода', async () => {
     const user = userEvent.setup();
     render(<App />);
-    const mon = day(/понедельник, 5 октября 2026/);
-    await user.type(within(mon).getByRole('textbox', { name: 'Новая задача' }), 'завтра в 18:00 позвонить маме{Enter}');
+    const body = monday().querySelector('.lined') as HTMLElement;
+    await user.click(body);
+    expect(newTaskIn(monday())).toHaveFocus();
+  });
+
+  it('быстрый ввод понимает дату, время и цвет по-русски', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(newTaskIn(monday()), 'завтра в 18:00 позвонить маме !синий{Enter}');
     const tue = day(/вторник, 6 октября 2026/);
     expect(within(tue).getByRole('checkbox', { name: 'позвонить маме' })).toBeInTheDocument();
     expect(within(tue).getByText('18:00')).toBeInTheDocument();
-    expect(within(mon).queryByRole('checkbox', { name: 'позвонить маме' })).not.toBeInTheDocument();
+    expect(within(monday()).queryByRole('checkbox', { name: 'позвонить маме' })).not.toBeInTheDocument();
   });
 
-  it('AC-03 adds tasks to the someday list', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    const list = screen.getByRole('region', { name: 'Когда-нибудь' });
-    await user.type(within(list).getByRole('textbox', { name: 'Новая задача' }), 'Прочитать книгу{Enter}');
-    expect(within(list).getByRole('checkbox', { name: 'Прочитать книгу' })).toBeInTheDocument();
-  });
-
-  it('AC-03/06 opens the editor, edits and deletes a task', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    const mon = day(/понедельник, 5 октября 2026/);
-    await user.type(within(mon).getByRole('textbox', { name: 'Новая задача' }), 'Черновик{Enter}');
-    await user.click(within(mon).getByRole('button', { name: 'Открыть задачу «Черновик»' }));
-    const dialog = screen.getByRole('dialog');
-    const title = within(dialog).getByRole('textbox', { name: 'Название' });
-    await user.clear(title);
-    await user.type(title, 'Чистовик');
-    await user.type(within(dialog).getByRole('textbox', { name: 'Заметка' }), 'подробности');
-    await user.click(within(dialog).getByRole('button', { name: 'Закрыть' }));
-    expect(within(mon).getByRole('checkbox', { name: 'Чистовик' })).toBeInTheDocument();
-    await user.click(within(mon).getByRole('button', { name: 'Открыть задачу «Чистовик»' }));
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить' }));
-    expect(within(mon).queryByRole('checkbox', { name: 'Чистовик' })).not.toBeInTheDocument();
-  });
-
-  it('AC-18 highlights Russian public holidays', async () => {
+  it('подписывает праздники РФ, но выходные выглядят как будни', async () => {
     const user = userEvent.setup();
     render(<App />);
     for (let i = 0; i < 4; i += 1) await user.click(screen.getByRole('button', { name: 'Следующая неделя' }));
-    expect(within(day(/среда, 4 ноября 2026/)).getByText('День народного единства')).toBeInTheDocument();
+    const wed = day(/среда, 4 ноября 2026/);
+    expect(within(wed).getByText('День народного единства')).toBeInTheDocument();
+    expect(wed).toHaveClass('is-holiday');
+    expect(day(/суббота, 7 ноября 2026/)).not.toHaveClass('is-holiday');
+    expect(within(day(/вторник, 3 ноября 2026/)).getByText('Сокращённый день')).toBeInTheDocument();
   });
 
-  it('AC-02 switches to month and day views', async () => {
+  it('скрывает выполненные, если так настроено', () => {
+    seed([task({ title: 'Сделано', done: true }), task({ title: 'Не сделано' })], { showCompleted: false });
+    render(<App />);
+    expect(within(monday()).queryByRole('checkbox', { name: 'Сделано' })).not.toBeInTheDocument();
+    expect(within(monday()).getByRole('checkbox', { name: 'Не сделано' })).toBeInTheDocument();
+  });
+});
+
+describe('списки «Когда-нибудь»', () => {
+  it('добавляет задачу в список и создаёт новый список из заготовки', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole('button', { name: 'Месяц' }));
-    expect(screen.getByRole('heading', { name: 'Октябрь 2026' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'День' }));
-    expect(screen.getByRole('heading', { name: 'понедельник, 5 октября 2026' })).toBeInTheDocument();
+    const list = screen.getByRole('region', { name: 'Когда-нибудь' });
+    await user.type(newTaskIn(list), 'Прочитать книгу{Enter}');
+    expect(within(list).getByRole('checkbox', { name: 'Прочитать книгу' })).toBeInTheDocument();
+    const ghost = screen.getAllByRole('region', { name: 'Новый список' })[0];
+    await user.type(within(ghost).getByRole('textbox', { name: 'Название нового списка' }), 'Фильмы{Enter}');
+    const films = screen.getByRole('region', { name: 'Фильмы' });
+    await user.type(newTaskIn(films), 'Сталкер{Enter}');
+    expect(within(films).getByRole('checkbox', { name: 'Сталкер' })).toBeInTheDocument();
   });
 
-  it('AC-14 finds tasks via search', async () => {
+  it('переименовывает список прямо в заголовке', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.type(within(day(/среда, 7 октября 2026/)).getByRole('textbox', { name: 'Новая задача' }), 'Записаться к врачу{Enter}');
+    const title = within(screen.getByRole('region', { name: 'Когда-нибудь' })).getByRole('textbox', { name: 'Название списка' });
+    await user.clear(title);
+    await user.type(title, 'Потом{Enter}');
+    expect(screen.getByRole('region', { name: 'Потом' })).toBeInTheDocument();
+  });
+});
+
+describe('месяц и поиск', () => {
+  it('клик по заголовку открывает месяц, клик по неделе переходит на неё', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /Октябрь 2026/ }));
+    const panel = screen.getByRole('dialog', { name: 'Календарь' });
+    await user.click(within(panel).getByRole('button', { name: 'Неделя 19 – 25 октября 2026' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(day(/понедельник, 19 октября 2026/)).toBeInTheDocument();
+  });
+
+  it('находит задачу и открывает её', async () => {
+    seed([task({ title: 'Записаться к врачу', date: '2026-10-21' })]);
+    const user = userEvent.setup();
+    render(<App />);
     await user.click(screen.getByRole('button', { name: 'Поиск' }));
     await user.type(screen.getByRole('searchbox'), 'врач');
-    expect(screen.getByRole('list', { name: 'Результаты поиска' })).toHaveTextContent('Записаться к врачу');
-    await act(async () => {});
+    const results = screen.getByRole('list', { name: 'Результаты поиска' });
+    expect(results).toHaveTextContent('Записаться к врачу');
+    expect(results).toHaveTextContent('21 октября');
+    await user.click(within(results).getByRole('button'));
+    expect(screen.getByRole('dialog', { name: 'Задача' })).toBeInTheDocument();
+    expect(day(/среда, 21 октября 2026/)).toBeInTheDocument();
+  });
+
+  it('пустой поиск подсказывает по-русски', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: 'Поиск' }));
+    await user.type(screen.getByRole('searchbox'), 'ничегонет');
+    expect(screen.getByText(/Ничего не нашлось/)).toBeInTheDocument();
   });
 });

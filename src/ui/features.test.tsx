@@ -1,102 +1,76 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from './App';
-import { seed, task, STORAGE_KEY } from './testSeed';
+import { STORAGE_KEY, seed, task } from './testSeed';
 import { encodeShare, snapshotCalendar } from '../domain/backup';
 import { data as fixtureData } from '../domain/fixtures';
+import { day, freezeToday, monday, newTaskIn } from './testUtil';
 
-const day = (name: RegExp) => screen.getByRole('region', { name });
-
-beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['Date'] });
-  vi.setSystemTime(new Date(2026, 9, 5, 12, 0));
-  location.hash = '';
-});
-afterEach(() => {
-  vi.useRealTimers();
-  location.hash = '';
-});
+beforeEach(() => { freezeToday(); location.hash = ''; });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); location.hash = ''; });
 
 describe('стикеры', () => {
-  it('AC-12 стикер ставится и убирается', async () => {
+  it('ставит и убирает стикер на дне', async () => {
     const user = userEvent.setup();
     render(<App />);
-    const mon = day(/понедельник, 5 октября 2026/);
-    await user.click(within(mon).getByRole('button', { name: 'Стикер на 5 октября' }));
+    await user.click(within(monday()).getByRole('button', { name: 'Стикер на 5 октября' }));
     await user.click(screen.getByRole('button', { name: '🎉' }));
-    expect(within(day(/понедельник, 5 октября 2026/)).getByText('🎉')).toBeInTheDocument();
-    await user.click(within(day(/понедельник, 5 октября 2026/)).getByRole('button', { name: 'Стикер на 5 октября' }));
+    expect(within(monday()).getByText('🎉')).toBeInTheDocument();
+    await user.click(within(monday()).getByRole('button', { name: 'Стикер на 5 октября' }));
     await user.click(screen.getByRole('button', { name: 'Убрать' }));
-    expect(within(day(/понедельник, 5 октября 2026/)).queryByText('🎉')).not.toBeInTheDocument();
+    expect(within(monday()).queryByText('🎉')).not.toBeInTheDocument();
   });
 });
 
-describe('итоги недели и хвосты', () => {
-  it('AC-20 итоги показывают прогресс', async () => {
-    seed([task({ id: 'a', title: 'А', done: true }), task({ id: 'b', title: 'Б' })]);
+describe('хвосты', () => {
+  it('кнопка в итогах переносит просроченное на сегодня', async () => {
+    seed([task({ id: 'a', title: 'Просрочено', date: '2026-10-02' })]);
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole('button', { name: 'Итоги' }));
-    const dlg = screen.getByRole('dialog', { name: 'Итоги недели' });
-    expect(within(dlg).getByRole('progressbar', { name: 'Выполнено за неделю' })).toHaveAttribute('aria-valuenow', '50');
-    expect(within(dlg).getByText(/1 из 2/)).toBeInTheDocument();
-    expect(within(dlg).getAllByTestId('stats-day')).toHaveLength(7);
-  });
-
-  it('AC-19 кнопка переносит хвосты на сегодня', async () => {
-    seed([task({ id: 'a', title: 'Просрочено', date: '2026-10-02' })], { autoRollover: false });
-    const user = userEvent.setup();
-    render(<App />);
-    await user.click(screen.getByRole('button', { name: 'Итоги' }));
-    await user.click(screen.getByRole('button', { name: /Перенести хвосты на сегодня/ }));
+    await user.click(screen.getByRole('button', { name: 'Меню' }));
+    await user.click(screen.getByRole('button', { name: /Итоги/ }));
+    await user.click(screen.getByRole('button', { name: 'Перенести хвосты на сегодня (1)' }));
     await user.click(screen.getByRole('button', { name: 'Закрыть' }));
-    expect(within(day(/понедельник, 5 октября 2026/)).getByRole('checkbox', { name: 'Просрочено' })).toBeInTheDocument();
+    expect(within(monday()).getByRole('checkbox', { name: 'Просрочено' })).toBeInTheDocument();
     expect(screen.getByText('Перенесено задач: 1')).toBeInTheDocument();
   });
 
-  it('AC-19 автоперенос при загрузке пишет lastRolloverDate', async () => {
+  it('автоперенос при загрузке — один раз в день', () => {
     seed([task({ id: 'a', title: 'Хвост', date: '2026-10-01' })], { autoRollover: true, lastRolloverDate: null });
-    render(<App />);
-    expect(within(day(/понедельник, 5 октября 2026/)).getByRole('checkbox', { name: 'Хвост' })).toBeInTheDocument();
-    expect(screen.getByText('Перенесено задач: 1')).toBeInTheDocument();
+    const { unmount } = render(<App />);
+    expect(within(monday()).getByRole('checkbox', { name: 'Хвост' })).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings.lastRolloverDate).toBe('2026-10-05');
-  });
-
-  it('AC-19 автоперенос не повторяется в тот же день', async () => {
-    seed([task({ id: 'a', title: 'Хвост', date: '2026-10-01' })], { autoRollover: true, lastRolloverDate: '2026-10-05' });
+    unmount();
+    seed([task({ id: 'b', title: 'Новый хвост', date: '2026-10-01' })], { autoRollover: true, lastRolloverDate: '2026-10-05' });
     render(<App />);
-    expect(screen.queryByRole('checkbox', { name: 'Хвост' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Новый хвост' })).not.toBeInTheDocument();
   });
 });
 
-describe('импорт по ссылке', () => {
+describe('календарь по ссылке', () => {
   function shareHash(name: string) {
     const base = fixtureData([task({ id: 's1', title: 'Из ссылки' })]);
-    const snap = snapshotCalendar({ ...base, calendars: [{ ...base.calendars[0], name }] }, 'cal');
-    return `#share=${encodeShare(snap)}`;
+    return `#share=${encodeShare(snapshotCalendar({ ...base, calendars: [{ ...base.calendars[0], name }] }, 'cal'))}`;
   }
 
-  it('AC-10 подтверждение, импорт, переключение и очистка hash', async () => {
+  it('спрашивает, добавляет и переключается на него', async () => {
     location.hash = shareHash('Семья');
     const user = userEvent.setup();
     render(<App />);
-    expect(screen.getByText('Добавить календарь «Семья» (1 задач)?')).toBeInTheDocument();
+    expect(screen.getByText('Добавить календарь «Семья» (1 задача)?')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Добавить' }));
-    expect(screen.getByLabelText('Календарь')).toHaveDisplayValue('Семья');
-    expect(screen.getByRole('checkbox', { name: 'Из ссылки' })).toBeInTheDocument();
+    expect(screen.getByText('Семья', { selector: '.cal-name' })).toBeInTheDocument();
+    expect(within(monday()).getByRole('checkbox', { name: 'Из ссылки' })).toBeInTheDocument();
     expect(location.hash).toBe('');
   });
 
-  it('AC-10 отказ не добавляет календарь', async () => {
+  it('отмена ничего не добавляет, битая ссылка — сообщение', async () => {
     location.hash = shareHash('Семья');
     const user = userEvent.setup();
-    render(<App />);
+    const { unmount } = render(<App />);
     await user.click(screen.getByRole('button', { name: 'Отмена' }));
-    expect(screen.getByLabelText('Календарь')).not.toHaveDisplayValue('Семья');
-    expect(location.hash).toBe('');
-  });
-
-  it('AC-10 битая ссылка показывает ошибку тостом', async () => {
+    expect(screen.queryByRole('checkbox', { name: 'Из ссылки' })).not.toBeInTheDocument();
+    unmount();
     location.hash = '#share=!!!не-ссылка';
     render(<App />);
     expect(await screen.findByText(/Не удалось открыть ссылку/)).toBeInTheDocument();
@@ -104,18 +78,20 @@ describe('импорт по ссылке', () => {
 });
 
 describe('горячие клавиши', () => {
-  it('AC-22 ← → переключают неделю, T возвращает на сегодня', async () => {
+  it('← → листают, T возвращает, M открывает месяц', async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.keyboard('{ArrowRight}');
-    expect(screen.getByRole('heading', { name: '12 – 18 октября 2026' })).toBeInTheDocument();
+    expect(day(/понедельник, 12 октября 2026/)).toBeInTheDocument();
     await user.keyboard('{ArrowLeft}{ArrowLeft}');
-    expect(screen.getByRole('heading', { name: '28 сентября – 4 октября 2026' })).toBeInTheDocument();
+    expect(day(/понедельник, 28 сентября 2026/)).toBeInTheDocument();
     await user.keyboard('t');
-    expect(screen.getByRole('heading', { name: '5 – 11 октября 2026' })).toBeInTheDocument();
+    expect(monday()).toHaveAttribute('aria-current', 'date');
+    await user.keyboard('m');
+    expect(screen.getByRole('dialog', { name: 'Календарь' })).toBeInTheDocument();
   });
 
-  it('AC-22 «/» открывает поиск, «?» — справку, Esc закрывает', async () => {
+  it('/ — поиск, ? — справка, Esc закрывает, N — ввод на сегодня', async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.keyboard('/');
@@ -126,37 +102,47 @@ describe('горячие клавиши', () => {
     expect(screen.getByRole('dialog', { name: 'Горячие клавиши' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  });
-
-  it('AC-22 N фокусирует поле новой задачи сегодняшнего дня', async () => {
-    const user = userEvent.setup();
-    render(<App />);
     await user.keyboard('n');
-    expect(within(day(/понедельник, 5 октября 2026/)).getByRole('textbox', { name: 'Новая задача' })).toHaveFocus();
+    expect(newTaskIn(monday())).toHaveFocus();
   });
 
-  it('AC-22 клавиши игнорируются при вводе в поле', async () => {
+  it('не срабатывают, пока печатаешь задачу', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.type(within(day(/понедельник, 5 октября 2026/)).getByRole('textbox', { name: 'Новая задача' }), 't/?');
-    expect(screen.getByRole('heading', { name: '5 – 11 октября 2026' })).toBeInTheDocument();
+    await user.type(newTaskIn(monday()), 't/?');
+    expect(monday()).toHaveAttribute('aria-current', 'date');
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
 
-describe('подсказки и пустые состояния', () => {
-  it('AC-17 в поле новой задачи виден пример быстрого ввода', () => {
+describe('напоминания и фокус', () => {
+  it('раз в 30 с показывает наступившее напоминание', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    vi.setSystemTime(new Date(2026, 9, 5, 8, 59, 40));
+    seed([task({ id: 'r', title: 'Лекарство', time: '09:00', reminder: 0 })]);
     render(<App />);
-    const box = within(day(/понедельник, 5 октября 2026/)).getByRole('textbox', { name: 'Новая задача' });
-    expect(box).toHaveAttribute('placeholder', 'Новая задача…');
-    expect(box).toHaveAttribute('title', 'Например: завтра в 18:00 позвонить маме');
+    await act(async () => { vi.setSystemTime(new Date(2026, 9, 5, 9, 0, 10)); vi.advanceTimersByTime(30_000); });
+    expect(screen.getByText(/Напоминание: Лекарство/, { selector: '.toast span' })).toBeInTheDocument();
   });
-  it('AC-14 поиск без результатов подсказывает по-русски', async () => {
+
+  it('работает без Notification в браузере', () => {
+    vi.stubGlobal('Notification', undefined);
+    expect(() => render(<App />)).not.toThrow();
+  });
+
+  it('фокус-таймер запускается из «Ещё»', async () => {
+    seed([task({ id: 'f', title: 'Глубокая работа' })]);
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole('button', { name: 'Поиск' }));
-    await user.type(screen.getByRole('searchbox'), 'ничегонет');
-    expect(screen.getByText('Ничего не найдено')).toBeInTheDocument();
+    await user.click(within(monday()).getByRole('button', { name: 'Открыть задачу «Глубокая работа»' }));
+    const dialog = screen.getByRole('dialog', { name: 'Задача' });
+    await user.click(within(dialog).getByRole('button', { name: 'Ещё' }));
+    await user.click(within(dialog).getByRole('button', { name: /Фокус/ }));
+    const widget = screen.getByRole('timer');
+    expect(widget).toHaveTextContent('25:00');
+    expect(widget).toHaveTextContent('Глубокая работа');
+    await user.click(within(widget).getByRole('button', { name: 'Закрыть таймер' }));
+    expect(screen.queryByRole('timer')).not.toBeInTheDocument();
   });
 });

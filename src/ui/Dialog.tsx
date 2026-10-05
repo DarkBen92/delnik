@@ -1,13 +1,14 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { IconClose } from './icons';
 
 interface Props {
   label: string;
   onClose: () => void;
   children: ReactNode;
-  wide?: boolean;
 }
 
-export function Dialog({ label, onClose, children, wide }: Props) {
+/** Модальное окно в стиле редактора задачи: светлая «карточка» со скруглением. */
+export function Dialog({ label, onClose, children }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -17,13 +18,13 @@ export function Dialog({ label, onClose, children, wide }: Props) {
     };
   }, []);
   return (
-    <div className="overlay no-print" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div role="dialog" aria-modal="true" aria-label={label} className={wide ? 'dialog wide' : 'dialog'} tabIndex={-1} ref={ref}>
-        <div className="dialog-head">
-          <h2 className="dialog-title">{label}</h2>
-          <button type="button" className="icon-btn" aria-label="Закрыть" onClick={onClose}>×</button>
+    <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div role="dialog" aria-modal="true" aria-label={label} className="sheet" tabIndex={-1} ref={ref}>
+        <div className="sheet-head">
+          <h2>{label}</h2>
+          <button type="button" className="tool" aria-label="Закрыть" onClick={onClose}><IconClose size={18} /></button>
         </div>
-        <div className="dialog-body">{children}</div>
+        {children}
       </div>
     </div>
   );

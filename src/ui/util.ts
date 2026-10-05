@@ -70,3 +70,25 @@ export function inkFor(hex: string): string {
   });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4 ? '#1b1b1b' : '#ffffff';
 }
+
+/** Заливка-«маркер» под текстом задачи. */
+export const MARKERS: Record<TaskColor, { bg: string; ink: string }> = {
+  none: { bg: 'transparent', ink: 'inherit' },
+  red: { bg: '#f0436a', ink: '#ffffff' },
+  orange: { bg: '#ffb224', ink: '#000000' },
+  yellow: { bg: '#ffec5c', ink: '#000000' },
+  green: { bg: '#3cf0a6', ink: '#000000' },
+  blue: { bg: '#4c63f2', ink: '#ffffff' },
+  purple: { bg: '#d46bfa', ink: '#000000' },
+  gray: { bg: '#c6c6c6', ink: '#000000' },
+};
+
+/** Склонение: plural(5, ['задача', 'задачи', 'задач']). */
+export function plural(n: number, forms: [string, string, string]): string {
+  const a = Math.abs(n) % 100;
+  const b = a % 10;
+  if (a > 10 && a < 20) return forms[2];
+  if (b > 1 && b < 5) return forms[1];
+  if (b === 1) return forms[0];
+  return forms[2];
+}
