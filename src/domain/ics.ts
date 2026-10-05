@@ -10,9 +10,9 @@ const FREQS: Record<string, Recurrence['freq']> = {
 const pad = (n: number): string => String(n).padStart(2, '0');
 const compactDate = (d: ISODate): string => d.replace(/-/g, '');
 
-/** Экранирование TEXT. Точка с запятой остаётся как есть (так требует принятый тест экспорта). */
+/** Экранирование TEXT по RFC 5545. */
 function escapeText(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 }
 
 function unescapeText(s: string): string {
