@@ -41,3 +41,12 @@ npm run build      # проверка типов и сборка в dist/
 
 Стек: React 19, TypeScript, Vite, Zustand, dnd-kit. Доменная логика — чистые функции в `src/domain`,
 интерфейс — `src/ui`, хранилище — `src/store`.
+
+## Публикация на Cloudflare
+
+Дельник — статический сайт, серверный код не нужен. Настройки лежат в `wrangler.jsonc`:
+сборка `npm run build` кладёт сайт в `dist/`, а `npx wrangler deploy` публикует его в Cloudflare Workers.
+
+Один раз в панели Cloudflare: **Workers & Pages → Create → Import a repository**, выбрать этот репозиторий,
+команда сборки `npm run build`, команда публикации `npx wrangler deploy`. После этого каждый пуш в `main`
+выкладывается сам. Свой домен подключается в настройках воркера: **Settings → Domains & Routes → Add → Custom domain**.

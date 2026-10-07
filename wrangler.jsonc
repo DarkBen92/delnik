@@ -1,0 +1,11 @@
+// Cloudflare Workers: Дельник — статический сайт (PWA) без серверного кода.
+// Сборка: npm run build → dist/, публикация: npx wrangler deploy.
+{
+  "name": "delnik",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./dist",
+    // Любой неизвестный адрес открывает приложение, а не страницу 404.
+    "not_found_handling": "single-page-application"
+  }
+}
