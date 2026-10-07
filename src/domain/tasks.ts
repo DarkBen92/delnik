@@ -18,7 +18,8 @@ export function createDefaultData(): AppData {
     settings: {
       theme: 'system',
       customTheme: null,
-      showCompleted: true,
+      customThemeDark: null,
+      hideCompleted: false,
       autoRollover: false,
       showHolidays: true,
       notifications: false,

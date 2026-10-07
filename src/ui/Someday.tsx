@@ -31,8 +31,8 @@ function ListTitle({ list }: { list: SomedayList }) {
 function ListColumn({ list }: { list: SomedayList }) {
   const store = useAppStore();
   const data = useApp((s) => s.data);
-  const showCompleted = data.settings.showCompleted;
-  const tasks = tasksForList(data, list.id).filter((t) => showCompleted || !t.done);
+  const hideCompleted = data.settings.hideCompleted;
+  const tasks = tasksForList(data, list.id).filter((t) => !hideCompleted || !t.done);
   const remove = () => {
     const count = tasksForList(store.getState().data, list.id).length;
     if (count > 0 && typeof window.confirm === 'function'

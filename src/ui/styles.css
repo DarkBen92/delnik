@@ -245,7 +245,10 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .task.is-lifted .check { opacity: 0; }
 
-.new-row { position: relative; }
+/* Строка ввода: линия под ней чуть подсвечивается при наведении, при вводе — серый блок. */
+.new-row { position: relative; border-bottom: 1px solid transparent; transition: border-color .15s; }
+.new-row:hover, .lined:hover:not(:has(.task:hover)) .new-row { border-bottom-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+.new-row:focus-within { border-bottom-color: var(--accent-line); }
 .new-task {
   position: relative; z-index: 1; width: 100%; height: 41px; border: 0; background: transparent;
   padding: 0 6px; outline: none; border-radius: 4px;
@@ -257,8 +260,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .new-plus { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); z-index: 2; pointer-events: none; }
 .new-row.is-hint:focus-within .new-plus { opacity: 0; }
 .new-row:focus-within::before {
-  content: ''; position: absolute; inset: -2px -8px; border-radius: 4px; background: var(--bg);
-  box-shadow: 0 1px 4px 1px rgba(0, 0, 0, .11);
+  content: ''; position: absolute; inset: 0 -8px -2px; border-radius: 6px; background: var(--soft2);
 }
 
 /* ——— Когда-нибудь ——— */

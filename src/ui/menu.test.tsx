@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from './App';
 import { STORAGE_KEY, seed, task } from './testSeed';
@@ -21,6 +21,33 @@ describe('меню', () => {
     expect(document.documentElement.dataset.theme).toBe('dark');
     await user.click(within(menu).getByRole('radio', { name: 'Светлая' }));
     expect(document.documentElement.dataset.theme).toBe('light');
+  });
+
+  it('свой цвет в тёмной теме не трогает светлую и не перекрашивает фон', async () => {
+    render(<App />);
+    const { user, menu } = await openMenu();
+    await user.click(within(menu).getByRole('radio', { name: 'Тёмная' }));
+    const accent = within(menu).getByLabelText('Цвет: Акцент');
+    expect(within(menu).getByLabelText('Цвет: Фон')).toHaveValue('#111111');
+    fireEvent.input(accent, { target: { value: '#8b5e3c' } });
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings;
+    expect(s.customThemeDark).toEqual({ accent: '#8b5e3c' });
+    expect(s.customTheme).toBeNull();
+    const root = document.documentElement;
+    expect(root.style.getPropertyValue('--accent')).toBe('#8b5e3c');
+    expect(root.style.getPropertyValue('--bg')).toBe('');
+    await user.click(within(menu).getByRole('radio', { name: 'Светлая' }));
+    expect(root.style.getPropertyValue('--accent')).toBe('');
+    expect(within(menu).getByLabelText('Цвет: Фон')).toHaveValue('#ffffff');
+  });
+
+  it('светлая палитра из старых данных не ломает тёмную тему', () => {
+    seed([], { theme: 'dark', customTheme: { accent: '#8b5e3c', background: '#ffffff', paper: '#e3e6fd', text: '#000000' } });
+    render(<App />);
+    const root = document.documentElement;
+    expect(root.dataset.theme).toBe('dark');
+    expect(root.style.getPropertyValue('--bg')).toBe('');
+    expect(root.style.getPropertyValue('--text')).toBe('');
   });
 
   it('создаёт календарь, переключается и не даёт удалить последний', async () => {

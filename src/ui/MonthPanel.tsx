@@ -20,7 +20,7 @@ function weeksOfMonth(first: ISODate): ISODate[] {
 function DayCell({ day, month, data, today }: { day: ISODate; month: string; data: AppData; today: ISODate }) {
   if (day.slice(0, 7) !== month) return <div className="m-day out" aria-hidden="true" />;
   const occ = tasksForDay(data, data.settings.activeCalendarId, day)
-    .filter((o) => data.settings.showCompleted || !o.done);
+    .filter((o) => !data.settings.hideCompleted || !o.done);
   return (
     <div className={`m-day${isoWeekday(day) >= 6 ? ' we' : ''}`}>
       <span className={`m-num${day === today ? ' is-today' : ''}`}>{Number(day.slice(8))}</span>

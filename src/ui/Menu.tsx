@@ -8,9 +8,14 @@ import { useApp, useAppStore } from '../store/store';
 import {
   IconCalendar, IconChart, IconClose, IconKeyboard, IconPage, IconPrint, IconSearch,
 } from './icons';
+import { useIsDark } from './hooks';
 import { downloadBlob, plural, readText } from './util';
 
-const DEFAULT_THEME: CustomTheme = { accent: '#eb5a0c', background: '#ffffff', paper: '#e3e6fd', text: '#000000' };
+/** Базовые цвета тем — их показывают пипетки, пока свой цвет не выбран. */
+const BASE_COLORS: Record<'light' | 'dark', Required<CustomTheme>> = {
+  light: { accent: '#eb5a0c', background: '#ffffff', paper: '#e3e6fd', text: '#000000' },
+  dark: { accent: '#eb5a0c', background: '#111111', paper: '#24263a', text: '#f2f2f2' },
+};
 
 function Tile({ label, icon, onClick }: { label: string; icon: ReactNode; onClick: () => void }) {
   return (
@@ -91,6 +96,7 @@ export function Menu() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const panel = useRef<HTMLDivElement>(null);
   const s = data.settings;
+  const dark = useIsDark();
   const st = () => store.getState();
   const close = () => st().closeDialog();
   const active = data.calendars.find((c) => c.id === s.activeCalendarId) ?? data.calendars[0];
@@ -116,7 +122,11 @@ export function Menu() {
     } catch { /* покажем ссылку в поле */ }
   };
 
-  const setTheme = (patch: Partial<CustomTheme>) => st().setSettings({ customTheme: { ...(s.customTheme ?? DEFAULT_THEME), ...patch } });
+  // Цвета правим у той темы, что сейчас на экране; храним только изменённые.
+  const themeKey = dark ? 'customThemeDark' : 'customTheme';
+  const custom = s[themeKey] ?? null;
+  const base = BASE_COLORS[dark ? 'dark' : 'light'];
+  const setTheme = (patch: CustomTheme) => st().setSettings({ [themeKey]: { ...(custom ?? {}), ...patch } });
 
   return (
     <div className="overlay clear" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
@@ -177,17 +187,17 @@ export function Menu() {
           <div className="theme-colors">
             {([['background', 'Фон'], ['text', 'Текст'], ['accent', 'Акцент'], ['paper', 'Окна']] as [keyof CustomTheme, string][]).map(([k, label]) => (
               <label key={k}>
-                <input type="color" aria-label={`Цвет: ${label}`} value={(s.customTheme ?? DEFAULT_THEME)[k]} onChange={(e) => setTheme({ [k]: e.target.value })} />
+                <input type="color" aria-label={`Цвет: ${label}`} value={custom?.[k] ?? base[k]} onChange={(e) => setTheme({ [k]: e.target.value })} />
                 <span>{label}</span>
               </label>
             ))}
-            {s.customTheme && <button type="button" className="link-btn" onClick={() => st().setSettings({ customTheme: null })}>Сбросить</button>}
+            {custom && <button type="button" className="link-btn" onClick={() => st().setSettings({ [themeKey]: null })}>Сбросить</button>}
           </div>
         </Section>
 
         <Section title="Поведение">
           {([
-            ['showCompleted', 'Показывать выполненные'],
+            ['hideCompleted', 'Скрывать выполненные'],
             ['autoRollover', 'Переносить невыполненные на сегодня'],
             ['showHolidays', 'Праздники и сокращённые дни РФ'],
           ] as const).map(([k, label]) => (

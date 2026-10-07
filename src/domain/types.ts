@@ -77,11 +77,12 @@ export interface Calendar {
   stickers: Record<ISODate, string>;
 }
 
+/** Свои цвета темы: хранятся только те, что пользователь поменял. */
 export interface CustomTheme {
-  accent: string;
-  background: string;
-  paper: string;
-  text: string;
+  accent?: string;
+  background?: string;
+  paper?: string;
+  text?: string;
 }
 
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -89,8 +90,12 @@ export type ViewMode = 'week' | 'month' | 'day';
 
 export interface Settings {
   theme: ThemeMode;
+  /** Свои цвета светлой темы. */
   customTheme: CustomTheme | null;
-  showCompleted: boolean;
+  /** Свои цвета тёмной темы — отдельно, чтобы светлые цвета не ломали тёмную тему. */
+  customThemeDark: CustomTheme | null;
+  /** Скрывать выполненные задачи; по умолчанию они остаются зачёркнутыми. */
+  hideCompleted: boolean;
   autoRollover: boolean;
   showHolidays: boolean;
   notifications: boolean;

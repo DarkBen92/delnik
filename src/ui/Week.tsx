@@ -142,11 +142,11 @@ export function DayColumn({ date }: { date: ISODate }) {
   const store = useAppStore();
   const data = useApp((s) => s.data);
   const today = useApp((s) => s.today);
-  const { activeCalendarId: cal, showCompleted, showHolidays } = data.settings;
+  const { activeCalendarId: cal, hideCompleted, showHolidays } = data.settings;
   const info = useMemo(() => getDayInfo(date), [date]);
   const all = tasksForDay(data, cal, date);
   const isPast = date < today;
-  const rows = (showCompleted ? all : all.filter((o) => !o.done))
+  const rows = (hideCompleted ? all.filter((o) => !o.done) : all)
     .map((o) => ({ task: o.task, date, done: o.done, recurring: o.recurring, tail: isPast && !o.done && !o.recurring }));
   const doneCount = all.filter((o) => o.done).length;
   const sticker = data.calendars.find((c) => c.id === cal)?.stickers[date];
