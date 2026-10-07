@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const out = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 mkdirSync(out, { recursive: true });
 
-const GREEN = [0x1f, 0x7a, 0x6d], DARK = [0x14, 0x5a, 0x50], PAPER = [0xff, 0xfd, 0xf8];
+const ORANGE = [0xeb, 0x5a, 0x0c], DARK = [0xbc, 0x48, 0x0a], PAPER = [0xff, 0xfd, 0xf8];
 
 function crc32(buf) {
   let c, crc = ~0;
@@ -62,7 +62,7 @@ function icon(scale, bgFull) {
     const cov = (d) => Math.max(0, Math.min(1, 0.5 - d / aa));
     const s = (n) => 0.5 + (n - 0.5) / scale;
     const su = s(u), sv = s(v);
-    let col = GREEN, alpha = bgFull ? 1 : cov(roundRect(u, v, 0, 0, 1, 1, 0.22));
+    let col = ORANGE, alpha = bgFull ? 1 : cov(roundRect(u, v, 0, 0, 1, 1, 0.22));
     const paper = cov(roundRect(su, sv, 0.2, 0.235, 0.8, 0.765, 0.07) * scale);
     if (paper > 0) {
       const pc = sv < 0.36 ? DARK : PAPER;
@@ -71,7 +71,7 @@ function icon(scale, bgFull) {
     }
     const tick = Math.min(distSeg(su, sv, 0.33, 0.585, 0.445, 0.7), distSeg(su, sv, 0.445, 0.7, 0.675, 0.44));
     const t = cov((tick - 0.039) * scale);
-    if (t > 0) { col = col.map((c, i) => c * (1 - t) + GREEN[i] * t); }
+    if (t > 0) { col = col.map((c, i) => c * (1 - t) + ORANGE[i] * t); }
     return [Math.round(col[0]), Math.round(col[1]), Math.round(col[2]), Math.round(alpha * 255)];
   };
 }

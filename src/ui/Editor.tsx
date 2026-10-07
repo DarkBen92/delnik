@@ -1,19 +1,19 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { addDays, formatRu, isoWeekday, weekdayShortRu } from '../domain/dates';
+import { addDays, dayMonthShort, formatRu, isoWeekday, weekdayShortRu } from '../domain/dates';
 import { describeRecurrence } from '../domain/recurrence';
 import { addTask, deleteTask, moveTask, skipOccurrence, toggleDone, updateTask } from '../domain/tasks';
-import { TASK_COLORS, type Recurrence, type RecurrenceFreq, type Task, type Weekday } from '../domain/types';
+import { TASK_COLORS, type ISODate, type Recurrence, type RecurrenceFreq, type Task, type Weekday } from '../domain/types';
 import { makeId } from '../domain/ids';
 import { useApp, useAppStore } from '../store/store';
 import { FILE_TOO_BIG, MAX_FILE_SIZE, deleteFile, getFile, putFile } from '../store/files';
 import {
-  CheckCircle, IconArrowDown, IconArrowRight, IconBell, IconCalendar, IconClip, IconClose, IconColor,
-  IconCopy, IconMore, IconPlusCircle, IconRepeat, IconTimer, IconTrash, IconWeek,
+  IconArrowDown, IconArrowRight, IconBell, IconCalendar, IconClip, IconClock, IconClose, IconCopy, IconPlus,
+  IconRepeat, IconTick, IconTimer, IconTrash,
 } from './icons';
 import { MiniCalendar } from './MiniCalendar';
-import { COLOR_LABELS, MARKERS, REMINDER_OPTIONS, WEEKDAYS, WEEKDAY_SHORT, downloadBlob, formatBytes } from './util';
+import { COLOR_LABELS, MARKERS, REMINDER_OPTIONS, WEEKDAYS, WEEKDAY_SHORT, capitalize, downloadBlob, formatBytes } from './util';
 
-type Pop = null | 'date' | 'repeat' | 'color' | 'reminder' | 'more' | 'delete';
+type Pop = null | 'date' | 'repeat' | 'reminder' | 'delete';
 
 function AutoText({ value, onChange, className, label, placeholder, onEnter }: {
   value: string; onChange: (v: string) => void; className: string; label: string; placeholder?: string; onEnter?: () => void;
@@ -164,7 +164,7 @@ function ReminderPop({ task, onSave }: { task: Task; onSave: (time: string | nul
           {REMINDER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </label>
-      <button type="button" className="pill-btn" onClick={() => onSave(time, rem === '' ? null : Number(rem))}>Готово</button>
+      <button type="button" className="pill-btn" onClick={() => onSave(time, rem === '' ? null : Number(rem))}>Сохранить</button>
       {task.time && <button type="button" className="link-btn" onClick={() => onSave(null, null)}>Убрать время</button>}
     </div>
   );
@@ -209,10 +209,18 @@ function Attachments({ task }: { task: Task }) {
   );
 }
 
+/** «Вт, 6 окт. · сегодня»; год — только если он не текущий. */
+function dateChipLabel(d: ISODate, today: ISODate): string {
+  const base = `${capitalize(weekdayShortRu(isoWeekday(d)))}, ${dayMonthShort(d)}${d.slice(0, 4) === today.slice(0, 4) ? '' : ` ${d.slice(0, 4)}`}`;
+  const rel = d === today ? 'сегодня' : d === addDays(today, 1) ? 'завтра' : d === addDays(today, -1) ? 'вчера' : '';
+  return rel ? `${base} · ${rel}` : base;
+}
+
 export function Editor({ id, occDate }: { id: string; occDate: string | null }) {
   const store = useAppStore();
   const task = useApp((s) => s.data.tasks.find((t) => t.id === id));
   const lists = useApp((s) => s.data.lists);
+  const today = useApp((s) => s.today);
   const [pop, setPop] = useState<Pop>(null);
   const [subText, setSubText] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -236,16 +244,31 @@ export function Editor({ id, occDate }: { id: string; occDate: string | null }) 
   const occ = recurring ? (occDate ?? task.date) : task.date;
   const done = recurring ? !!occ && task.completedDates.includes(occ) : task.done;
   const toggle = (p: Pop) => setPop((cur) => (cur === p ? null : p));
+  const calLists = lists.filter((l) => l.calendarId === task.calendarId).sort((a, b) => a.order - b.order);
   const listName = task.listId ? lists.find((l) => l.id === task.listId)?.title ?? 'Список' : null;
-  const where = occ
-    ? `${weekdayShortRu(isoWeekday(occ)).replace(/^./, (c) => c.toUpperCase())}, ${formatRu(occ, 'dayMonth')} ${occ.slice(0, 4)}`
-    : `Когда-нибудь · ${listName}`;
+  const where = occ ? dateChipLabel(occ, today) : `Когда-нибудь · ${listName}`;
+  const reminderLabel = task.reminder === null ? null : REMINDER_OPTIONS.find((o) => o.value === String(task.reminder))?.label ?? null;
+  const subsDone = task.subtasks.filter((s) => s.done).length;
+  const noDate = task.date ? undefined : 'Сначала поставьте задачу на день';
 
   const moveTo = (target: { date: string } | { listId: string }) => {
     st().mutate((d) => moveTask(d, id, target, undefined, recurring && occ ? occ : undefined));
     setPop(null);
     if (recurring && occ) close(); // вхождение стало отдельной задачей
   };
+
+  // Быстрые переносы внизу: от дня задачи, а у задачи из списка — от сегодня.
+  const firstList = calLists.find((l) => l.id !== task.listId);
+  const moves: { key: string; label: ReactNode; to: { date: string } | { listId: string } }[] = occ
+    ? [
+      { key: 'tomorrow', label: <>На завтра <IconArrowRight size={14} /></>, to: { date: addDays(occ, 1) } },
+      { key: 'week', label: 'На след. неделю', to: { date: addDays(occ, 7) } },
+    ]
+    : [
+      { key: 'today', label: 'На сегодня', to: { date: today } },
+      { key: 'tomorrow', label: <>На завтра <IconArrowRight size={14} /></>, to: { date: addDays(today, 1) } },
+    ];
+  if (firstList) moves.push({ key: 'list', label: `В «${firstList.title}»`, to: { listId: firstList.id } });
 
   const addFiles = async (files: FileList | null) => {
     if (!files) return;
@@ -269,12 +292,49 @@ export function Editor({ id, occDate }: { id: string; occDate: string | null }) 
     close();
   };
 
+  const duplicate = () => {
+    const { id: _i, createdAt: _c, updatedAt: _u, order: _o, ...rest } = task;
+    void _i; void _c; void _u; void _o;
+    st().mutate((d) => addTask(d, task.date
+      ? { ...rest, attachments: [], date: occ ?? task.date, listId: null, recurrence: null, completedDates: [], skippedDates: [] }
+      : { ...rest, attachments: [], listId: task.listId as string, date: null }).data);
+    st().toast('Задача продублирована');
+  };
+
   const addSub = () => {
     const t = subText.trim();
     if (!t) return;
     patch({ subtasks: [...task.subtasks, { id: makeId(), title: t, done: false }] });
     setSubText('');
   };
+
+  const popEl = pop && (
+    <div className={`pop pop-${pop}`} role="group" aria-label={{
+      date: 'Дата', repeat: 'Повтор', reminder: 'Время и напоминание', delete: 'Удаление',
+    }[pop]}>
+      {pop === 'date' && (
+        <div className="pop-body">
+          <MiniCalendar value={occ} onPick={(d) => moveTo({ date: d })} />
+          <div className="pop-sep" />
+          {calLists.map((l) => (
+            <button key={l.id} type="button" className="pop-item" onClick={() => moveTo({ listId: l.id })}>
+              <IconArrowDown size={16} /> В «{l.title}»
+            </button>
+          ))}
+        </div>
+      )}
+      {pop === 'repeat' && <RepeatPop task={task} onChange={(r) => patch({ recurrence: r })} />}
+      {pop === 'reminder' && (
+        <ReminderPop task={task} onSave={(time, reminder) => { patch({ time, reminder: time ? reminder : null }); setPop(null); }} />
+      )}
+      {pop === 'delete' && (
+        <div className="pop-body pop-list">
+          <button type="button" className="pop-item" onClick={() => { if (occ) st().mutate((d) => skipOccurrence(d, id, occ)); close(); }}>Только это</button>
+          <button type="button" className="pop-item danger" onClick={removeAll}>Всю серию</button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
@@ -287,91 +347,14 @@ export function Editor({ id, occDate }: { id: string; occDate: string | null }) 
             <span>{where}</span>
           </button>
           <div className="ed-tools">
+            <Tool label="Фокус-таймер" onClick={() => { st().setFocus({ taskId: id, title: task.title }); close(); }}><IconTimer size={18} /></Tool>
+            <Tool label="Дублировать" onClick={duplicate}><IconCopy size={18} /></Tool>
             <Tool label="Удалить" active={pop === 'delete'} onClick={() => (recurring ? toggle('delete') : removeAll())}><IconTrash size={18} /></Tool>
-            <Tool label="Повтор" active={pop === 'repeat' || recurring} disabled={!task.date} onClick={() => toggle('repeat')}><IconRepeat size={18} /></Tool>
-            <Tool label="Цвет" active={pop === 'color'} onClick={() => toggle('color')}>
-              <span className="color-dot" style={{ background: task.color === 'none' ? 'transparent' : MARKERS[task.color].bg }}><IconColor size={18} /></span>
-            </Tool>
-            <Tool label="Напоминание" active={pop === 'reminder' || task.time !== null} disabled={!task.date} onClick={() => toggle('reminder')}><IconBell size={18} /></Tool>
-            <Tool label="Ещё" active={pop === 'more'} onClick={() => toggle('more')}><IconMore size={18} /></Tool>
             <Tool label="Закрыть" onClick={close}><IconClose size={18} /></Tool>
           </div>
         </div>
 
-        {pop && (
-          <div className={`pop pop-${pop}`} role="group" aria-label={{
-            date: 'Дата', repeat: 'Повтор', color: 'Цвет', reminder: 'Время и напоминание', more: 'Действия', delete: 'Удаление',
-          }[pop]}>
-            {pop === 'date' && (
-              <div className="pop-body">
-                <MiniCalendar value={occ} onPick={(d) => moveTo({ date: d })} />
-                <div className="pop-sep" />
-                {lists.filter((l) => l.calendarId === task.calendarId).map((l) => (
-                  <button key={l.id} type="button" className="pop-item" onClick={() => moveTo({ listId: l.id })}>
-                    <IconArrowDown size={16} /> В «{l.title}»
-                  </button>
-                ))}
-              </div>
-            )}
-            {pop === 'repeat' && <RepeatPop task={task} onChange={(r) => patch({ recurrence: r })} />}
-            {pop === 'color' && (
-              <div className="pop-body colors" role="radiogroup" aria-label="Цвет задачи">
-                {TASK_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    role="radio"
-                    aria-checked={task.color === c}
-                    aria-label={COLOR_LABELS[c]}
-                    title={COLOR_LABELS[c]}
-                    className={`swatch${c === 'none' ? ' none' : ''}`}
-                    style={{ background: c === 'none' ? undefined : MARKERS[c].bg }}
-                    onClick={() => { patch({ color: c }); setPop(null); }}
-                  />
-                ))}
-              </div>
-            )}
-            {pop === 'reminder' && (
-              <ReminderPop task={task} onSave={(time, reminder) => { patch({ time, reminder: time ? reminder : null }); setPop(null); }} />
-            )}
-            {pop === 'more' && (
-              <div className="pop-body pop-list">
-                {occ && (
-                  <>
-                    <button type="button" className="pop-item" onClick={() => moveTo({ date: addDays(occ, 1) })}>На завтра <IconArrowRight size={16} /></button>
-                    <button type="button" className="pop-item" onClick={() => moveTo({ date: addDays(occ, 7) })}>На следующую неделю <IconWeek size={16} /></button>
-                  </>
-                )}
-                {lists.filter((l) => l.calendarId === task.calendarId).slice(0, 1).map((l) => (
-                  <button key={l.id} type="button" className="pop-item" onClick={() => moveTo({ listId: l.id })}>В «{l.title}» <IconArrowDown size={16} /></button>
-                ))}
-                <button
-                  type="button"
-                  className="pop-item"
-                  onClick={() => {
-                    const { id: _i, createdAt: _c, updatedAt: _u, order: _o, ...rest } = task;
-                    void _i; void _c; void _u; void _o;
-                    st().mutate((d) => addTask(d, task.date
-                      ? { ...rest, attachments: [], date: occ ?? task.date, listId: null, recurrence: null, completedDates: [], skippedDates: [] }
-                      : { ...rest, attachments: [], listId: task.listId as string, date: null }).data);
-                    st().toast('Задача продублирована');
-                    setPop(null);
-                  }}
-                >
-                  Дублировать <IconCopy size={16} />
-                </button>
-                <button type="button" className="pop-item" onClick={() => fileRef.current?.click()}>Прикрепить файл <IconClip size={16} /></button>
-                <button type="button" className="pop-item" onClick={() => { st().setFocus({ taskId: id, title: task.title }); close(); }}>Фокус <IconTimer size={16} /></button>
-              </div>
-            )}
-            {pop === 'delete' && (
-              <div className="pop-body pop-list">
-                <button type="button" className="pop-item" onClick={() => { if (occ) st().mutate((d) => skipOccurrence(d, id, occ)); close(); }}>Только это</button>
-                <button type="button" className="pop-item danger" onClick={removeAll}>Всю серию</button>
-              </div>
-            )}
-          </div>
-        )}
+        {(pop === 'date' || pop === 'delete') && popEl}
 
         <div className={`ed-title-row${done ? ' is-done' : ''}`}>
           <AutoText className="ed-title" label="Название" value={task.title} onChange={(v) => patch({ title: v })} />
@@ -380,66 +363,100 @@ export function Editor({ id, occDate }: { id: string; occDate: string | null }) 
             role="checkbox"
             aria-checked={done}
             aria-label="Выполнено"
-            className="check on"
+            className="ed-check"
             onClick={() => st().mutate((d) => toggleDone(d, id, recurring ? (occ ?? undefined) : undefined))}
           >
-            <CheckCircle size={24} />
+            {done && <IconTick size={14} />}
           </button>
         </div>
 
-        {(recurring || task.time) && (
-          <div className="ed-chips">
-            {task.time && <button type="button" className="chip" onClick={() => setPop('reminder')}>
-              <IconBell size={13} /> {task.time}{task.reminder !== null ? ` · ${REMINDER_OPTIONS.find((o) => o.value === String(task.reminder))?.label.toLowerCase() ?? ''}` : ''}
-            </button>}
-            {recurring && task.date && <button type="button" className="chip" onClick={() => setPop('repeat')}>
-              <IconRepeat size={13} /> {describeRecurrence(task.recurrence as Recurrence, task.date)}
-            </button>}
-          </div>
-        )}
-
-        <AutoText className="ed-note" label="Заметка" placeholder="Добавьте подробности…" value={task.note} onChange={(v) => patch({ note: v })} />
-
-        <ul className="subtasks" aria-label="Подзадачи">
-          {task.subtasks.map((s) => (
-            <li key={s.id} className={s.done ? 'is-done' : ''}>
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked={s.done}
-                aria-label={s.title}
-                className="check on small"
-                onClick={() => patch({ subtasks: task.subtasks.map((x) => (x.id === s.id ? { ...x, done: !x.done } : x)) })}
-              >
-                <CheckCircle size={18} />
-              </button>
-              <input
-                aria-label="Подзадача"
-                value={s.title}
-                onChange={(e) => patch({ subtasks: task.subtasks.map((x) => (x.id === s.id ? { ...x, title: e.target.value } : x)) })}
-              />
-              <button type="button" className="icon-btn" aria-label={`Удалить подзадачу ${s.title}`} onClick={() => patch({ subtasks: task.subtasks.filter((x) => x.id !== s.id) })}>
-                <IconClose size={14} />
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="sub-add">
-          <IconPlusCircle size={18} />
-          <input
-            aria-label="Новая подзадача"
-            placeholder="Добавить подзадачу…"
-            value={subText}
-            onChange={(e) => setSubText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSub(); } }}
-            onBlur={addSub}
-          />
-          <button type="button" className="icon-btn" aria-label="Прикрепить файл" title="Прикрепить файл" onClick={() => fileRef.current?.click()}>
-            <IconClip size={18} />
+        <div className="ed-chips">
+          <button type="button" className={`chip${task.time ? ' is-set' : ''}`} disabled={!task.date} title={noDate} aria-expanded={pop === 'reminder'} onClick={() => toggle('reminder')}>
+            <IconClock size={15} /> {task.time ?? 'Время'}
+          </button>
+          <button type="button" className={`chip${reminderLabel ? ' is-set' : ''}`} disabled={!task.date} title={noDate} onClick={() => toggle('reminder')}>
+            <IconBell size={15} /> {reminderLabel ?? 'Напоминание'}
+          </button>
+          <button type="button" className={`chip${recurring ? ' is-set' : ''}`} disabled={!task.date} title={noDate} aria-expanded={pop === 'repeat'} onClick={() => toggle('repeat')}>
+            <IconRepeat size={15} /> {recurring && task.date ? describeRecurrence(task.recurrence as Recurrence, task.date) : 'Повтор'}
+          </button>
+          <button type="button" className="chip" onClick={() => fileRef.current?.click()}>
+            <IconClip size={15} /> Файл
           </button>
           <input ref={fileRef} type="file" multiple hidden aria-label="Добавить вложение" onChange={(e) => { void addFiles(e.target.files); e.target.value = ''; }} />
+          {(pop === 'reminder' || pop === 'repeat') && popEl}
         </div>
-        <Attachments task={task} />
+
+        <div className="ed-colors" role="radiogroup" aria-label="Цвет">
+          <span className="ed-label" aria-hidden="true">Цвет</span>
+          {TASK_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              role="radio"
+              aria-checked={task.color === c}
+              aria-label={COLOR_LABELS[c]}
+              title={COLOR_LABELS[c]}
+              className={`swatch${c === 'none' ? ' none' : ''}`}
+              style={{ background: c === 'none' ? undefined : MARKERS[c].bg }}
+              onClick={() => patch({ color: c })}
+            />
+          ))}
+        </div>
+
+        <div className="ed-note-box">
+          <AutoText className="ed-note" label="Заметка" placeholder="Добавьте подробности…" value={task.note} onChange={(v) => patch({ note: v })} />
+          <Attachments task={task} />
+        </div>
+
+        <div className="ed-subs">
+          <div className="ed-subs-head">
+            <span>Подзадачи</span>
+            {task.subtasks.length > 0 && <span className="ed-subs-count">{subsDone} из {task.subtasks.length}</span>}
+          </div>
+          {task.subtasks.length > 0 && (
+            <div className="ed-subs-bar" aria-hidden="true"><span style={{ width: `${(subsDone / task.subtasks.length) * 100}%` }} /></div>
+          )}
+          <ul className="subtasks" aria-label="Подзадачи">
+            {task.subtasks.map((s) => (
+              <li key={s.id} className={s.done ? 'is-done' : ''}>
+                <input
+                  type="checkbox"
+                  aria-label={s.title}
+                  checked={s.done}
+                  onChange={() => patch({ subtasks: task.subtasks.map((x) => (x.id === s.id ? { ...x, done: !x.done } : x)) })}
+                />
+                <input
+                  className="sub-title"
+                  aria-label="Подзадача"
+                  value={s.title}
+                  onChange={(e) => patch({ subtasks: task.subtasks.map((x) => (x.id === s.id ? { ...x, title: e.target.value } : x)) })}
+                />
+                <button type="button" className="icon-btn" aria-label={`Удалить подзадачу ${s.title}`} onClick={() => patch({ subtasks: task.subtasks.filter((x) => x.id !== s.id) })}>
+                  <IconClose size={14} />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="sub-add">
+            <IconPlus size={18} />
+            <input
+              aria-label="Новая подзадача"
+              placeholder="Добавить подзадачу"
+              value={subText}
+              onChange={(e) => setSubText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSub(); } }}
+              onBlur={addSub}
+            />
+          </div>
+        </div>
+
+        <div className="ed-moves">
+          {moves.map((m) => (
+            <button key={m.key} type="button" className="move" onClick={() => moveTo(m.to)}>{m.label}</button>
+          ))}
+          <button type="button" className="move primary" onClick={close}>Готово</button>
+        </div>
       </div>
     </div>
   );

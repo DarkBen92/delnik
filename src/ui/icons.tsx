@@ -72,3 +72,17 @@ export const IconPage = (p: P) => <Svg {...p}><path d="M7 3.5h7l4 4V20H7zM14 3.5
 export const IconKeyboard = (p: P) => (
   <Svg {...p}><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" /></Svg>
 );
+export const IconClock = (p: P) => <Svg {...p}><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></Svg>;
+export const IconPlus = (p: P) => <Svg {...p}><path d="M12 5v14M5 12h14" /></Svg>;
+export const IconTick = (p: P) => <Svg strokeWidth={3} {...p}><path d="m5 12.5 4.5 4.5L19 7.5" /></Svg>;
+
+/** Ручка для перетаскивания: шесть точек. */
+export function IconGrip({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size * 0.625} height={size} viewBox="0 0 10 16" fill="currentColor" aria-hidden="true" focusable="false">
+      <circle cx="3" cy="3" r="1.4" /><circle cx="7" cy="3" r="1.4" />
+      <circle cx="3" cy="8" r="1.4" /><circle cx="7" cy="8" r="1.4" />
+      <circle cx="3" cy="13" r="1.4" /><circle cx="7" cy="13" r="1.4" />
+    </svg>
+  );
+}

@@ -50,8 +50,7 @@ describe('редактор задачи', () => {
     seed([task({ id: 'c', title: 'Важное' })]);
     render(<App />);
     const { user, dialog } = await openTask('Важное');
-    await user.click(within(dialog).getByRole('button', { name: 'Цвет' }));
-    await user.click(within(dialog).getByRole('radio', { name: 'Красный' }));
+    await user.click(within(within(dialog).getByRole('radiogroup', { name: 'Цвет' })).getByRole('radio', { name: 'Красный' }));
     expect(stored()[0].color).toBe('red');
   });
 
@@ -100,11 +99,13 @@ describe('редактор задачи', () => {
     seed([task({ id: 't', title: 'Созвон' })]);
     render(<App />);
     const { user, dialog } = await openTask('Созвон');
-    await user.click(within(dialog).getByRole('button', { name: 'Напоминание' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Время' }));
     await user.click(within(dialog).getByRole('button', { name: 'Час больше' }));
     await user.selectOptions(within(dialog).getByRole('combobox', { name: 'Напоминание' }), '15');
-    await user.click(within(dialog).getByRole('button', { name: 'Готово' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
     expect(stored()[0]).toMatchObject({ time: '10:00', reminder: 15 });
+    expect(within(dialog).getByRole('button', { name: '10:00' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'За 15 минут' })).toBeInTheDocument();
     expect(within(monday()).getByText('10:00')).toBeInTheDocument();
   });
 
@@ -117,29 +118,40 @@ describe('редактор задачи', () => {
     expect(stored()[0].subtasks).toMatchObject([{ title: 'Коробки', done: true }]);
   });
 
-  it('переносит через меню «Ещё» и выбор даты', async () => {
+  it('переносит кнопками внизу и выбором даты', async () => {
     seed([task({ id: 'm', title: 'Отчёт' })]);
     render(<App />);
     let { user, dialog } = await openTask('Отчёт');
-    await user.click(within(dialog).getByRole('button', { name: 'Ещё' }));
+    expect(within(dialog).getByRole('button', { name: 'Дата' })).toHaveTextContent('Пн, 5 окт. · сегодня');
     await user.click(within(dialog).getByRole('button', { name: /На завтра/ }));
     expect(within(day(/вторник, 6 октября 2026/)).getByRole('checkbox', { name: 'Отчёт' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Дата' })).toHaveTextContent('Вт, 6 окт. · завтра');
     await user.click(within(dialog).getByRole('button', { name: 'Дата' }));
     await user.click(within(dialog).getByRole('button', { name: 'пятница, 9 октября 2026' }));
     expect(within(day(/пятница, 9 октября 2026/)).getByRole('checkbox', { name: 'Отчёт' })).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Дата' }));
-    await user.click(within(dialog).getByRole('button', { name: /В «Когда-нибудь»/ }));
+    await user.click(within(within(dialog).getByRole('group', { name: 'Дата' })).getByRole('button', { name: /В «Когда-нибудь»/ }));
     expect(within(screen.getByRole('region', { name: 'Когда-нибудь' })).getByRole('checkbox', { name: 'Отчёт' })).toBeInTheDocument();
     ({ dialog } = { dialog: screen.getByRole('dialog', { name: 'Задача' }) });
-    expect(within(dialog).getByText(/Когда-нибудь/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Дата' })).toHaveTextContent('Когда-нибудь');
+    // из списка — обратно в неделю
+    await user.click(within(dialog).getByRole('button', { name: 'На сегодня' }));
+    expect(within(monday()).getByRole('checkbox', { name: 'Отчёт' })).toBeInTheDocument();
+  });
+
+  it('«Готово» закрывает редактор', async () => {
+    seed([task({ id: 'g', title: 'Письмо' })]);
+    render(<App />);
+    const { user, dialog } = await openTask('Письмо');
+    await user.click(within(dialog).getByRole('button', { name: 'Готово' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('дублирует задачу', async () => {
     seed([task({ id: 'd', title: 'Копия' })]);
     render(<App />);
     const { user, dialog } = await openTask('Копия');
-    await user.click(within(dialog).getByRole('button', { name: 'Ещё' }));
-    await user.click(within(dialog).getByRole('button', { name: /Дублировать/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Дублировать' }));
     expect(within(monday()).getAllByRole('checkbox', { name: 'Копия' })).toHaveLength(2);
   });
 

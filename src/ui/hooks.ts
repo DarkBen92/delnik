@@ -82,6 +82,9 @@ export function useShortcuts(): void {
       else if (key === '?') { e.preventDefault(); st.openDialog({ kind: 'help' }); }
       else if (e.code === 'KeyN' || lower === 'n' || lower === 'т') {
         e.preventDefault();
+        // Сначала — строка быстрого ввода, без неё — строка «новая задача» в сегодняшнем дне.
+        const quick = document.querySelector<HTMLInputElement>('#quick-input');
+        if (quick) { quick.focus(); return; }
         const focusToday = () => {
           const el = document.querySelector<HTMLInputElement>('section.day[aria-current="date"] input.new-task');
           if (el) { el.focus(); return true; }

@@ -10,7 +10,7 @@ import {
 } from './icons';
 import { downloadBlob, plural, readText } from './util';
 
-const DEFAULT_THEME: CustomTheme = { accent: '#4c63f2', background: '#ffffff', paper: '#e3e6fd', text: '#000000' };
+const DEFAULT_THEME: CustomTheme = { accent: '#eb5a0c', background: '#ffffff', paper: '#e3e6fd', text: '#000000' };
 
 function Tile({ label, icon, onClick }: { label: string; icon: ReactNode; onClick: () => void }) {
   return (

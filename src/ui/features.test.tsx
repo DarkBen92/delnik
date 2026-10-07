@@ -91,7 +91,7 @@ describe('горячие клавиши', () => {
     expect(screen.getByRole('dialog', { name: 'Календарь' })).toBeInTheDocument();
   });
 
-  it('/ — поиск, ? — справка, Esc закрывает, N — ввод на сегодня', async () => {
+  it('/ — поиск, ? — справка, Esc закрывает, N — быстрый ввод', async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.keyboard('/');
@@ -103,7 +103,7 @@ describe('горячие клавиши', () => {
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await user.keyboard('n');
-    expect(newTaskIn(monday())).toHaveFocus();
+    expect(screen.getByRole('textbox', { name: 'Быстрый ввод задачи' })).toHaveFocus();
   });
 
   it('не срабатывают, пока печатаешь задачу', async () => {
@@ -131,14 +131,13 @@ describe('напоминания и фокус', () => {
     expect(() => render(<App />)).not.toThrow();
   });
 
-  it('фокус-таймер запускается из «Ещё»', async () => {
+  it('фокус-таймер запускается из редактора', async () => {
     seed([task({ id: 'f', title: 'Глубокая работа' })]);
     const user = userEvent.setup();
     render(<App />);
     await user.click(within(monday()).getByRole('button', { name: 'Открыть задачу «Глубокая работа»' }));
     const dialog = screen.getByRole('dialog', { name: 'Задача' });
-    await user.click(within(dialog).getByRole('button', { name: 'Ещё' }));
-    await user.click(within(dialog).getByRole('button', { name: /Фокус/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Фокус-таймер' }));
     const widget = screen.getByRole('timer');
     expect(widget).toHaveTextContent('25:00');
     expect(widget).toHaveTextContent('Глубокая работа');

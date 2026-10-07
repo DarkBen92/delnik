@@ -13,10 +13,11 @@ import { Editor } from './Editor';
 import { FocusTimer } from './FocusTimer';
 import { Header } from './Header';
 import { Menu } from './Menu';
+import { QuickBar } from './QuickBar';
 import { MonthPanel } from './MonthPanel';
 import { HelpDialog, SearchPanel, ShareConfirm, StatsDialog, StickerPicker, Toasts } from './Panels';
 import { SomedayLists } from './Someday';
-import { TaskLine, WeekGrid, itemId } from './Week';
+import { TaskLine, WeekGrid, WeekStrip, itemId } from './Week';
 import { useShortcuts, useTheme, useTicker } from './hooks';
 import './styles.css';
 
@@ -125,8 +126,10 @@ function Shell() {
     >
       <div className="app">
         <Header />
+        <QuickBar />
         <PrintTitle />
         <main>
+          <WeekStrip />
           <WeekGrid />
           <SomedayLists />
         </main>
