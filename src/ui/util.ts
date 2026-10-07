@@ -1,4 +1,5 @@
-import type { TaskColor, Weekday } from '../domain/types';
+import { addDays, dayMonthShort, isoWeekday, weekdayShortRu } from '../domain/dates';
+import type { ISODate, TaskColor, Weekday } from '../domain/types';
 
 export const COLOR_LABELS: Record<TaskColor, string> = {
   none: 'Без цвета', red: 'Красный', orange: 'Оранжевый', yellow: 'Жёлтый',
@@ -91,4 +92,13 @@ export function plural(n: number, forms: [string, string, string]): string {
   if (b > 1 && b < 5) return forms[1];
   if (b === 1) return forms[0];
   return forms[2];
+}
+
+export const capitalize = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1) : s);
+
+/** «Сегодня», «Завтра» или «Ср, 7 окт.». */
+export function dayLabel(d: ISODate, today: ISODate): string {
+  if (d === today) return 'Сегодня';
+  if (d === addDays(today, 1)) return 'Завтра';
+  return `${capitalize(weekdayShortRu(isoWeekday(d)))}, ${dayMonthShort(d)}`;
 }

@@ -1,30 +1,34 @@
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { dueReminders } from '../domain/reminders';
 import { useApp, useAppStore } from '../store/store';
 import { isTypingTarget, inkFor } from './util';
 import { systemNotify } from './notify';
 
-/** data-theme и переопределение CSS-переменных своей темы. */
-export function useTheme(): void {
+/** Тёмная ли тема сейчас: выбрана явно или «как в системе» при тёмной системе. */
+export function useIsDark(): boolean {
   const theme = useApp((s) => s.data.settings.theme);
-  const custom = useApp((s) => s.data.settings.customTheme);
+  const [sysDark, setSysDark] = useState(() => (typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-color-scheme: dark)').matches : false));
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return undefined;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const on = () => setSysDark(mq.matches);
+    on();
+    mq.addEventListener?.('change', on);
+    return () => mq.removeEventListener?.('change', on);
+  }, []);
+  return theme === 'dark' || (theme === 'system' && sysDark);
+}
+
+/** data-theme и переопределение CSS-переменных своей темы (у светлой и тёмной — свои цвета). */
+export function useTheme(): void {
+  const dark = useIsDark();
+  const custom = useApp((s) => (dark ? s.data.settings.customThemeDark : s.data.settings.customTheme));
   useLayoutEffect(() => {
     const root = document.documentElement;
-    const mq = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-    const apply = () => {
-      const dark = theme === 'dark' || (theme === 'system' && !!mq?.matches);
-      root.dataset.theme = dark ? 'dark' : 'light';
-    };
-    apply();
-    if (theme !== 'system' || !mq) return undefined;
-    mq.addEventListener?.('change', apply);
-    return () => mq.removeEventListener?.('change', apply);
-  }, [theme]);
-  useLayoutEffect(() => {
-    const root = document.documentElement;
+    root.dataset.theme = dark ? 'dark' : 'light';
     const vars: Record<string, string | undefined> = {
       '--accent': custom?.accent,
-      '--accent-ink': custom ? inkFor(custom.accent) : undefined,
+      '--accent-ink': custom?.accent ? inkFor(custom.accent) : undefined,
       '--bg': custom?.background,
       '--paper': custom?.paper,
       '--text': custom?.text,
@@ -33,7 +37,7 @@ export function useTheme(): void {
       if (v) root.style.setProperty(k, v);
       else root.style.removeProperty(k);
     }
-  }, [custom]);
+  }, [dark, custom]);
 }
 
 /** Раз в 30 с: напоминания и смена дня. */
@@ -82,6 +86,9 @@ export function useShortcuts(): void {
       else if (key === '?') { e.preventDefault(); st.openDialog({ kind: 'help' }); }
       else if (e.code === 'KeyN' || lower === 'n' || lower === 'т') {
         e.preventDefault();
+        // Сначала — строка быстрого ввода, без неё — строка «новая задача» в сегодняшнем дне.
+        const quick = document.querySelector<HTMLInputElement>('#quick-input');
+        if (quick) { quick.focus(); return; }
         const focusToday = () => {
           const el = document.querySelector<HTMLInputElement>('section.day[aria-current="date"] input.new-task');
           if (el) { el.focus(); return true; }

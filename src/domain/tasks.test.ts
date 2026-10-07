@@ -16,7 +16,7 @@ describe('default data', () => {
     expect(d.lists.map((l) => l.title)).toEqual(['Когда-нибудь']);
     expect(d.lists[0].calendarId).toBe(d.calendars[0].id);
     expect(d.settings).toMatchObject({
-      theme: 'system', view: 'week', showCompleted: true, autoRollover: false, showHolidays: true,
+      theme: 'system', view: 'week', hideCompleted: false, autoRollover: false, showHolidays: true,
       activeCalendarId: d.calendars[0].id,
     });
   });

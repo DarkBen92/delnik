@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { addDays, formatRu, isoWeekNumber, monthYearShort, startOfWeek } from '../domain/dates';
+import { weekStats } from '../domain/tasks';
 import { useApp, useAppStore } from '../store/store';
 import { IconLeft, IconMenu, IconRight, IconSearch } from './icons';
 
@@ -26,6 +28,7 @@ export function Header() {
   const store = useAppStore();
   const anchor = useApp((s) => s.anchor);
   const today = useApp((s) => s.today);
+  const data = useApp((s) => s.data);
   const calName = useApp((s) => {
     const cals = s.data.calendars;
     return cals.length > 1 ? cals.find((c) => c.id === s.data.settings.activeCalendarId)?.name ?? '' : '';
@@ -37,18 +40,29 @@ export function Header() {
   const short = monthYearShort(thursday);
   const isCurrent = weekStart === startOfWeek(today);
   const st = () => store.getState();
+  const stats = useMemo(() => weekStats(data, data.settings.activeCalendarId, weekStart, today), [data, weekStart, today]);
 
   return (
     <header className="top">
-      <h1 className={`title${isCurrent ? '' : ' is-away'}`}>
-        <button type="button" className="title-btn" title="Открыть месяц" onClick={() => st().openDialog({ kind: 'month' })}>
-          <span className="t-full">{full}</span>
-          <span className="t-short" aria-hidden="true">{short}</span>
-          <span className="sr-only">, неделя {isoWeekNumber(weekStart)}</span>
-          <span className="weekno" aria-hidden="true">№{isoWeekNumber(weekStart)}</span>
-        </button>
-        {calName && <span className="cal-name">{calName}</span>}
-      </h1>
+      <div className="top-left">
+        <h1 className={`title${isCurrent ? '' : ' is-away'}`}>
+          <button type="button" className="title-btn" title="Открыть месяц" onClick={() => st().openDialog({ kind: 'month' })}>
+            <span className="t-full">{full}</span>
+            <span className="t-short" aria-hidden="true">{short}</span>
+            <span className="sr-only">, неделя {isoWeekNumber(weekStart)}</span>
+            <span className="weekno" aria-hidden="true">№{isoWeekNumber(weekStart)}</span>
+          </button>
+          {calName && <span className="cal-name">{calName}</span>}
+        </h1>
+        {stats.total > 0 && (
+          <div className="week-progress">
+            <span className="wp-bar" aria-hidden="true">
+              <span style={{ width: `${Math.round((stats.done / stats.total) * 100)}%` }} />
+            </span>
+            <span>Неделя: сделано {stats.done} из {stats.total}</span>
+          </div>
+        )}
+      </div>
       <nav className="actions" aria-label="Навигация">
         <button type="button" className="round soft" aria-label="Поиск" title="Поиск (/)" onClick={() => st().setSearchOpen(true)}>
           <IconSearch />

@@ -24,10 +24,15 @@ export function loadData(): AppData {
   }
 }
 
-/** Активный календарь должен существовать. */
+/** Активный календарь должен существовать; старые ключи настроек убираем. */
 export function normalize(d: AppData): AppData {
-  if (d.calendars.some((c) => c.id === d.settings.activeCalendarId)) return d;
-  return { ...d, settings: { ...d.settings, activeCalendarId: d.calendars[0].id } };
+  // Раньше был «показывать выполненные»; его заменил «скрывать выполненные» (по умолчанию выключен),
+  // поэтому старое значение не переносим: выполненные снова видны зачёркнутыми.
+  const { showCompleted: _old, ...settings } = d.settings as AppData['settings'] & { showCompleted?: boolean };
+  void _old;
+  const fixed = { ...d, settings };
+  if (fixed.calendars.some((c) => c.id === settings.activeCalendarId)) return fixed;
+  return { ...fixed, settings: { ...settings, activeCalendarId: fixed.calendars[0].id } };
 }
 
 export function saveData(d: AppData): void {

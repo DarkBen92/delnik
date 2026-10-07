@@ -81,8 +81,18 @@ describe('неделя', () => {
     expect(within(day(/вторник, 3 ноября 2026/)).getByText('Сокращённый день')).toBeInTheDocument();
   });
 
+  it('выполненная задача остаётся в дне зачёркнутой, даже если в старых данных её скрывали', async () => {
+    seed([task({ title: 'Сделать' })], { showCompleted: false } as never);
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(within(monday()).getByRole('checkbox', { name: 'Сделать' }));
+    const box = within(monday()).getByRole('checkbox', { name: 'Сделать' });
+    expect(box).toHaveAttribute('aria-checked', 'true');
+    expect(box.closest('li')).toHaveClass('is-done');
+  });
+
   it('скрывает выполненные, если так настроено', () => {
-    seed([task({ title: 'Сделано', done: true }), task({ title: 'Не сделано' })], { showCompleted: false });
+    seed([task({ title: 'Сделано', done: true }), task({ title: 'Не сделано' })], { hideCompleted: true });
     render(<App />);
     expect(within(monday()).queryByRole('checkbox', { name: 'Сделано' })).not.toBeInTheDocument();
     expect(within(monday()).getByRole('checkbox', { name: 'Не сделано' })).toBeInTheDocument();
