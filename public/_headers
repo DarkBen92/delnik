@@ -1,0 +1,8 @@
+# Сервис-воркер и манифест проверяются при каждом заходе, чтобы обновления доходили сразу.
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+# Файлы сборки с хешем в имени не меняются — их можно кэшировать надолго.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
