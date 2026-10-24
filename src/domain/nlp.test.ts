@@ -5,7 +5,7 @@ const TODAY = '2026-10-05'; // понедельник
 describe('parseQuickInput', () => {
   it('keeps plain text as title', () => {
     expect(parseQuickInput('Купить хлеб', TODAY)).toEqual({
-      title: 'Купить хлеб', date: null, time: null, recurrence: null, color: null,
+      title: 'Купить хлеб', date: null, time: null, recurrence: null, color: null, tag: null,
     });
   });
 
@@ -69,5 +69,12 @@ describe('parseQuickInput', () => {
   it('does not eat words that only look like keywords', () => {
     expect(parseQuickInput('Завтрак с Олей', TODAY)).toMatchObject({ title: 'Завтрак с Олей', date: null });
     expect(parseQuickInput('в пятницу в 7 вечера', TODAY)).toMatchObject({ title: 'в пятницу в 7 вечера', date: '2026-10-09', time: '19:00' });
+  });
+
+  it('parses a #tag keeping its case; _ means a space', () => {
+    expect(parseQuickInput('бег #Спорт завтра', TODAY)).toMatchObject({ title: 'бег', tag: 'Спорт', date: '2026-10-06' });
+    expect(parseQuickInput('зарядка #утренняя_рутина в 7:00', TODAY)).toMatchObject({ title: 'зарядка', tag: 'утренняя рутина', time: '07:00' });
+    expect(parseQuickInput('учить C# !синий', TODAY)).toMatchObject({ title: 'учить C#', tag: null, color: 'blue' });
+    expect(parseQuickInput('йога #дом #спорт', TODAY)).toMatchObject({ title: 'йога #спорт', tag: 'дом' });
   });
 });

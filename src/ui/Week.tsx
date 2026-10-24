@@ -4,10 +4,12 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { dayMonthShort, formatRu, isoWeekday, weekDates, weekdayShortRu } from '../domain/dates';
 import { getDayInfo } from '../domain/holidays';
+import { effectiveColor } from '../domain/tags';
 import { tasksForDay, toggleDone } from '../domain/tasks';
 import type { ISODate, Task } from '../domain/types';
 import { useApp, useAppStore, type AddTarget } from '../store/store';
 import { CheckCircle, IconBell, IconClip, IconGrip, IconPlus, IconRepeat, IconTick } from './icons';
+import { TagDot } from './Swatches';
 import { MARKERS, capitalize } from './util';
 
 export const itemId = (taskId: string, date: ISODate | null) => `t:${taskId}:${date ?? ''}`;
@@ -21,12 +23,14 @@ export interface RowProps {
   tail?: boolean;
 }
 
-/** Содержимое строки: время, текст-«маркер», значки и кружок выполнения. */
+/** Содержимое строки: время, текст-«маркер», тэг, значки и кружок выполнения. */
 export function TaskLine({ task, date, done, recurring }: RowProps) {
   const store = useAppStore();
-  const m = MARKERS[task.color];
+  const tag = useApp((s) => (task.tagId ? s.data.tags.find((t) => t.id === task.tagId) : undefined));
+  const color = effectiveColor(task, tag ? [tag] : []);
+  const m = MARKERS[color];
   const subDone = task.subtasks.filter((s) => s.done).length;
-  const pill: CSSProperties = task.color === 'none' ? {} : { background: m.bg, color: m.ink };
+  const pill: CSSProperties = color === 'none' ? {} : { background: m.bg, color: m.ink };
   return (
     <>
       <span className="grip" aria-hidden="true"><IconGrip /></span>
@@ -38,6 +42,12 @@ export function TaskLine({ task, date, done, recurring }: RowProps) {
       >
         {task.time && <span className="task-time">{task.time}</span>}
         <span className="pill" style={pill}>{task.title}</span>
+        {tag && (
+          <span className="task-tag">
+            {tag.color !== 'none' && <TagDot color={tag.color} />}
+            {tag.name}
+          </span>
+        )}
         <span className="task-meta" aria-hidden="true">
           {recurring && <IconRepeat size={13} />}
           {task.reminder !== null && task.time && <IconBell size={13} />}

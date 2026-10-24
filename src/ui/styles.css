@@ -219,6 +219,13 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .task-time { flex: none; font-size: 12px; font-weight: 500; opacity: .5; font-variant-numeric: tabular-nums; }
 .task.is-done .task-time { opacity: .25; }
+.task-tag {
+  flex: 0 1 auto; min-width: 0; max-width: 45%; display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; opacity: .55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.task.is-done .task-tag { opacity: .2; }
+.tag-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.tag-dot.none { box-shadow: inset 0 0 0 1px var(--edge); }
 .task-meta { display: flex; gap: 4px; align-items: center; opacity: .3; flex: none; font-size: 11px; }
 .note-dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
 .check {
@@ -372,6 +379,16 @@ button { -webkit-tap-highlight-color: transparent; }
 .chip.is-set { background: var(--ed-accent-bg); border-color: var(--accent); color: var(--ed-accent-text); font-weight: 500; }
 .chip:disabled { opacity: .4; cursor: default; border-color: var(--ed-chip-line); }
 .ed-colors { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ed-tags { display: flex; flex-direction: column; gap: 10px; }
+.ed-tag-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ed-tag-list { display: contents; }
+.tag-chip { display: inline-flex; align-items: center; gap: 5px; }
+.ed-tag-new { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding-left: 50px; }
+.tag-input {
+  width: 100%; border: 1px solid var(--edge); border-radius: 12px; background: var(--bg);
+  padding: 7px 10px; font-size: 14px; outline: none;
+}
+.tag-input:focus { border-color: var(--accent); }
 .ed-label { width: 44px; font-size: 13px; opacity: .6; }
 .ed-note-box { border-radius: 16px; background: var(--ed-box); padding: 12px 14px 14px; }
 .ed-note {
@@ -548,6 +565,37 @@ input[type='color']::-webkit-color-swatch-wrapper { padding: 0; }
 input[type='color']::-webkit-color-swatch { border: 0; border-radius: 50%; }
 input[type='color']::-moz-color-swatch { border: 0; border-radius: 50%; }
 .inline-form { display: flex; gap: 8px; margin-top: 8px; }
+/* Тэги: превью в меню и окно «Тэги» */
+.tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.tag-chip-view {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 14px;
+  background: var(--soft); font-size: 13px;
+}
+.tags-hint { margin-top: -4px !important; font-size: 14px; }
+.tags-empty { padding: 18px 16px; border-radius: 16px; background: var(--soft); font-size: 14px; text-align: center; opacity: .8; }
+.tag-items { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.tag-item { border-radius: 14px; transition: background .12s; }
+.tag-item:hover, .tag-item:focus-within { background: var(--soft); }
+.tag-item-row { display: flex; align-items: center; gap: 6px; padding: 4px 6px; }
+.tag-item .icon-btn { opacity: 0; transition: opacity .12s; }
+.tag-item:hover .icon-btn, .tag-item .icon-btn:focus-visible { opacity: 1; }
+.tag-color-btn {
+  width: 32px; height: 32px; flex: none; display: grid; place-items: center; border: 0; border-radius: 50%;
+  background: transparent; cursor: pointer; transition: background .12s;
+}
+.tag-color-btn:hover, .tag-color-btn[aria-expanded='true'] { background: var(--soft2); }
+.tag-dot.big { width: 14px; height: 14px; }
+.tag-count { flex: none; font-size: 12px; opacity: .5; white-space: nowrap; }
+.tag-palette { padding: 4px 6px 10px 44px; }
+.tag-new {
+  margin-top: 16px; padding: 14px; border-radius: 18px; background: var(--ed-box, var(--soft));
+  display: flex; flex-direction: column; gap: 12px;
+}
+.tag-new-head { font-size: 15px; font-weight: 700; }
+.tag-new-row { display: flex; align-items: center; gap: 10px; }
+.tag-new-row .tag-input { flex: 1; min-width: 0; }
+.tag-preview { flex: none; max-width: 40%; display: flex; font-size: 14px; }
+.tag-create { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; }
 .inline-form input, .share-url {
   flex: 1; min-width: 0; border: 1px solid var(--edge); border-radius: 12px; background: var(--bg);
   padding: 7px 10px; font-size: 14px; outline: none;

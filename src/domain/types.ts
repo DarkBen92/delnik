@@ -33,6 +33,14 @@ export interface AttachmentMeta {
   type: string;
 }
 
+/** Тэг задачи: название и необязательный цвет. */
+export interface Tag {
+  id: string;
+  name: string;
+  /** `none` — тэг без цвета. */
+  color: TaskColor;
+}
+
 export interface Task {
   id: string;
   calendarId: string;
@@ -41,6 +49,8 @@ export interface Task {
   /** Для неповторяющихся задач. У повторяющихся выполнение хранится в `completedDates`. */
   done: boolean;
   color: TaskColor;
+  /** Тэг; `null` — без тэга. Свой цвет задачи важнее цвета тэга. */
+  tagId: string | null;
   /** Дата задачи (для повторяющейся — дата начала серии). `null` — задача в списке. */
   date: ISODate | null;
   /** Список «Когда-нибудь». Ровно одно из `date` / `listId` не равно `null`. */
@@ -110,6 +120,7 @@ export interface AppData {
   calendars: Calendar[];
   lists: SomedayList[];
   tasks: Task[];
+  tags: Tag[];
   settings: Settings;
 }
 
@@ -136,6 +147,8 @@ export interface QuickInputResult {
   time: TimeHM | null;
   recurrence: Recurrence | null;
   color: TaskColor | null;
+  /** Название тэга из `#тэг` в исходном написании. */
+  tag: string | null;
 }
 
 export interface WeekStats {

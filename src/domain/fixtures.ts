@@ -11,6 +11,7 @@ export function task(over: Partial<Task> = {}): Task {
     note: '',
     done: false,
     color: 'none',
+    tagId: null,
     date: '2026-10-05',
     listId: null,
     order: n,

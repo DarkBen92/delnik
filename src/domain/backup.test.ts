@@ -43,6 +43,39 @@ describe('share link', () => {
     expect(imported.find((t) => t.title === 'В списке')!.listId).toBe(newList.id);
   });
 
+  it('carries used tags and merges them by name on import', () => {
+    const d = {
+      ...data([
+        task({ id: 'a', tagId: 'sport' }),
+        task({ id: 'b', tagId: 'work' }),
+        task({ id: 'c', tagId: 'other-only', calendarId: 'other' }),
+      ]),
+      tags: [
+        { id: 'sport', name: 'Спорт', color: 'yellow' as const },
+        { id: 'work', name: 'Работа', color: 'blue' as const },
+        { id: 'other-only', name: 'Чужой', color: 'red' as const },
+      ],
+    };
+    const snap = snapshotCalendar(d, 'cal');
+    expect(snap.tags!.map((t) => t.name).sort()).toEqual(['Работа', 'Спорт']);
+
+    const target = { ...data(), tags: [{ id: 'mine', name: 'спорт', color: 'green' as const }] };
+    const r = importSnapshot(target, decodeShare(encodeShare(snap)));
+    expect(r.data.tags.map((t) => t.name).sort()).toEqual(['Работа', 'спорт']);
+    const imported = r.data.tasks.filter((t) => t.calendarId === r.calendarId);
+    const work = r.data.tags.find((t) => t.name === 'Работа')!;
+    expect(work.color).toBe('blue');
+    expect(imported.map((t) => t.tagId).sort()).toEqual(['mine', work.id].sort());
+  });
+
+  it('opens old links without tags', () => {
+    const snap = snapshotCalendar(data([task({ id: 'a' })]), 'cal');
+    delete (snap as { tags?: unknown }).tags;
+    const r = importSnapshot(data(), snap);
+    expect(r.data.tags).toEqual([]);
+    expect(r.data.tasks[0].tagId).toBeNull();
+  });
+
   it('throws on garbage', () => {
     expect(() => decodeShare('%%%')).toThrow();
   });

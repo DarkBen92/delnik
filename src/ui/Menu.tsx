@@ -9,6 +9,7 @@ import {
   IconCalendar, IconChart, IconClose, IconKeyboard, IconPage, IconPrint, IconSearch,
 } from './icons';
 import { useIsDark } from './hooks';
+import { TagDot } from './Swatches';
 import { downloadBlob, plural, readText } from './util';
 
 /** Базовые цвета тем — их показывают пипетки, пока свой цвет не выбран. */
@@ -174,6 +175,19 @@ export function Menu() {
           {shareUrl && (
             <input className="share-url" aria-label="Ссылка на копию календаря" readOnly value={shareUrl} onFocus={(e) => e.currentTarget.select()} />
           )}
+        </Section>
+
+        <Section title="Тэги">
+          {data.tags.length > 0
+            ? (
+              <div className="tag-chips" aria-label="Тэги">
+                {data.tags.map((t) => <span key={t.id} className="tag-chip-view"><TagDot color={t.color} />{t.name}</span>)}
+              </div>
+            )
+            : <p className="menu-note">Подписывайте задачи тэгами — «Спорт», «Работа» — и красьте их цветом тэга.</p>}
+          <div className="btn-row">
+            <button type="button" className="pill-btn" onClick={() => st().openDialog({ kind: 'tags' })}>Настроить тэги</button>
+          </div>
         </Section>
 
         <Section title="Оформление">

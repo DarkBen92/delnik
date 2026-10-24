@@ -1,5 +1,5 @@
 import { createDefaultData } from '../domain/tasks';
-import type { AppData } from '../domain/types';
+import type { AppData, Task } from '../domain/types';
 
 export const STORAGE_KEY = 'delnik:data:v1';
 
@@ -17,6 +17,7 @@ export function loadData(): AppData {
       calendars: p.calendars,
       lists: Array.isArray(p.lists) ? p.lists : def.lists,
       tasks: Array.isArray(p.tasks) ? p.tasks : [],
+      tags: Array.isArray(p.tags) ? p.tags : [],
       settings: { ...def.settings, ...(p.settings ?? {}) },
     } as AppData);
   } catch {
@@ -24,13 +25,18 @@ export function loadData(): AppData {
   }
 }
 
-/** Активный календарь должен существовать; старые ключи настроек убираем. */
+/** Активный календарь должен существовать; старые ключи настроек убираем; tagId без тэга обнуляем. */
 export function normalize(d: AppData): AppData {
   // Раньше был «показывать выполненные»; его заменил «скрывать выполненные» (по умолчанию выключен),
   // поэтому старое значение не переносим: выполненные снова видны зачёркнутыми.
   const { showCompleted: _old, ...settings } = d.settings as AppData['settings'] & { showCompleted?: boolean };
   void _old;
-  const fixed = { ...d, settings };
+  const tags = Array.isArray(d.tags) ? d.tags : [];
+  const known = new Set(tags.map((t) => t.id));
+  const stale = (t: Task) => t.tagId === undefined || (t.tagId !== null && !known.has(t.tagId));
+  // задачи пересоздаём, только если есть что чинить: строки недели мемоизированы по ссылке
+  const tasks = d.tasks.some(stale) ? d.tasks.map((t) => (stale(t) ? { ...t, tagId: null } : t)) : d.tasks;
+  const fixed = { ...d, tags, tasks, settings };
   if (fixed.calendars.some((c) => c.id === settings.activeCalendarId)) return fixed;
   return { ...fixed, settings: { ...settings, activeCalendarId: fixed.calendars[0].id } };
 }

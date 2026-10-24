@@ -75,6 +75,10 @@ export function parseQuickInput(text: string, today: ISODate): QuickInputResult 
   const cm = take(/(?<=^|\s)!([\p{L}]+)/u, (m) => COLORS.some(([re]) => re.test(m[1])));
   if (cm) color = COLORS.find(([re]) => re.test(cm[1]))![1];
 
+  // тэг: только первый `#слово`; название берём из исходного текста, `_` — пробел
+  const tm = take(/(?<=^|\s)#([\p{L}\p{N}_-]+)/u);
+  const tag = tm ? orig.slice(tm.index + 1, tm.index + tm[0].length).replace(/_/g, ' ') : null;
+
   // повтор
   let m: RegExpExecArray | null;
   if ((m = take(new RegExp(`${B}кажды[е]\\s+(\\d+)\\s+(дн\\p{L}*|недел\\p{L}*|месяц\\p{L}*|лет|год\\p{L}*)${E}`, 'u')))) {
@@ -159,5 +163,5 @@ export function parseQuickInput(text: string, today: ISODate): QuickInputResult 
   title = title.replace(/\s+/g, ' ').replace(/^[\s,;:.\-–—]+|[\s,;:\-–—]+$/g, '').trim();
   if (!title) title = orig.trim();
 
-  return { title, date, time, recurrence, color };
+  return { title, date, time, recurrence, color, tag };
 }

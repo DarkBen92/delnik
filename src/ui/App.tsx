@@ -16,6 +16,7 @@ import { Menu } from './Menu';
 import { QuickBar } from './QuickBar';
 import { MonthPanel } from './MonthPanel';
 import { HelpDialog, SearchPanel, ShareConfirm, StatsDialog, StickerPicker, Toasts } from './Panels';
+import { TagsDialog } from './TagsDialog';
 import { SomedayLists } from './Someday';
 import { TaskLine, WeekGrid, WeekStrip, itemId } from './Week';
 import { useShortcuts, useTheme, useTicker } from './hooks';
@@ -149,6 +150,7 @@ function Shell() {
       {dialog?.kind === 'month' && <MonthPanel />}
       {dialog?.kind === 'stats' && <StatsDialog />}
       {dialog?.kind === 'help' && <HelpDialog />}
+      {dialog?.kind === 'tags' && <TagsDialog />}
       <ShareConfirm />
       <StickerPicker />
       <FocusTimer />

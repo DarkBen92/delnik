@@ -15,6 +15,7 @@ export function createDefaultData(): AppData {
     calendars: [{ id: calendarId, name: 'Личное', color: CAL_COLORS[0], stickers: {} }],
     lists: [{ id: makeId(), calendarId, title: 'Когда-нибудь', order: 0 }],
     tasks: [],
+    tags: [],
     settings: {
       theme: 'system',
       customTheme: null,
@@ -67,6 +68,7 @@ export function addTask(data: AppData, t: NewTask): { data: AppData; task: Task 
     note: '',
     done: false,
     color: 'none',
+    tagId: null,
     time: null,
     reminder: null,
     recurrence: null,

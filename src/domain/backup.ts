@@ -1,10 +1,13 @@
 import { makeId } from './ids';
-import type { AppData, Calendar, SomedayList, Task } from './types';
+import { addTag } from './tags';
+import type { AppData, Calendar, SomedayList, Tag, Task } from './types';
 
 export interface CalendarSnapshot {
   calendar: Calendar;
   lists: SomedayList[];
   tasks: Task[];
+  /** Тэги задач календаря; в старых ссылках поля нет. */
+  tags?: Tag[];
 }
 
 const NOT_BACKUP = 'Это не файл резервной копии Дельника';
@@ -38,10 +41,13 @@ export function parseBackup(text: string): AppData {
 export function snapshotCalendar(data: AppData, calendarId: string): CalendarSnapshot {
   const calendar = data.calendars.find((c) => c.id === calendarId);
   if (!calendar) throw new Error('Календарь не найден');
+  const tasks = data.tasks.filter((t) => t.calendarId === calendarId);
+  const used = new Set(tasks.map((t) => t.tagId));
   return {
     calendar,
     lists: data.lists.filter((l) => l.calendarId === calendarId),
-    tasks: data.tasks.filter((t) => t.calendarId === calendarId),
+    tasks,
+    tags: data.tags.filter((t) => used.has(t.id)),
   };
 }
 
@@ -70,9 +76,17 @@ export function decodeShare(s: string): CalendarSnapshot {
   }
 }
 
-/** Добавляет снимок как новый календарь с новыми id (вложения не переносятся). Возвращает данные и id календаря. */
+/** Добавляет снимок как новый календарь с новыми id (вложения не переносятся). Возвращает данные и id календаря.
+ *  Тэги сливаются с существующими по названию. */
 export function importSnapshot(data: AppData, s: CalendarSnapshot): { data: AppData; calendarId: string } {
   const calendarId = makeId();
+  let base: AppData = { ...data, tags: data.tags ?? [] };
+  const tagIds = new Map<string, string>();
+  for (const tag of s.tags ?? []) {
+    const r = addTag(base, tag.name, tag.color);
+    base = r.data;
+    if (r.tag) tagIds.set(tag.id, r.tag.id);
+  }
   const listIds = new Map<string, string>();
   const lists = s.lists.map((l) => {
     const id = makeId();
@@ -83,12 +97,13 @@ export function importSnapshot(data: AppData, s: CalendarSnapshot): { data: AppD
     ...t,
     id: makeId(),
     calendarId,
+    tagId: (t.tagId && tagIds.get(t.tagId)) ?? null,
     listId: t.listId === null ? null : listIds.get(t.listId) ?? null,
     attachments: [],
   }));
   return {
     data: {
-      ...data,
+      ...base,
       calendars: [...data.calendars, { ...s.calendar, id: calendarId, stickers: { ...s.calendar.stickers } }],
       lists: [...data.lists, ...lists],
       tasks: [...data.tasks, ...tasks],

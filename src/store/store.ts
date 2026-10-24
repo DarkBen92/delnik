@@ -4,6 +4,7 @@ import { useStore } from 'zustand';
 import type { AppData, ISODate, Settings, ViewMode } from '../domain/types';
 import { addDays, addMonths, startOfWeek, todayISO } from '../domain/dates';
 import { parseQuickInput } from '../domain/nlp';
+import { addTag } from '../domain/tags';
 import { addTask, rolloverTasks } from '../domain/tasks';
 import { decodeShare, type CalendarSnapshot, importSnapshot } from '../domain/backup';
 import { loadData, normalize, saveData } from './storage';
@@ -12,6 +13,7 @@ export type DialogState =
   | { kind: 'editor'; id: string; date: ISODate | null }
   | { kind: 'settings' }
   | { kind: 'stats' }
+  | { kind: 'tags' }
   | { kind: 'help' }
   | { kind: 'menu' }
   | { kind: 'month' };
@@ -137,16 +139,19 @@ export function createAppStore(): AppStore {
         const cal = s.data.settings.activeCalendarId;
         let date: ISODate | null = q.date ?? ('date' in target ? target.date : null);
         if (!date && q.recurrence) date = s.today;
+        // #тэг: существующий по названию или новый без цвета
+        const tagged = q.tag ? addTag(s.data, q.tag) : { data: s.data, tag: null };
         const base = {
           calendarId: cal,
+          tagId: tagged.tag?.id ?? null,
           title,
           time: q.time,
           recurrence: q.recurrence,
           color: q.color ?? ('none' as const),
         };
         const nt = date
-          ? addTask(s.data, { ...base, date })
-          : addTask(s.data, { ...base, listId: (target as { listId: string }).listId });
+          ? addTask(tagged.data, { ...base, date })
+          : addTask(tagged.data, { ...base, listId: (target as { listId: string }).listId });
         commit(nt.data);
         return true;
       },

@@ -2,6 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { addDays, startOfWeek } from '../domain/dates';
 import { parseQuickInput } from '../domain/nlp';
 import { describeRecurrence } from '../domain/recurrence';
+import { findTag } from '../domain/tags';
 import type { ISODate } from '../domain/types';
 import { useApp, useAppStore, type AddTarget } from '../store/store';
 import { IconPlus } from './icons';
@@ -22,6 +23,7 @@ export function QuickBar() {
   const listTitle = useApp((s) => firstList(s.data)?.title ?? '');
   // Те же «хвосты», что переносит doRollover: невыполненные разовые задачи прошедших дней.
   const tails = useApp((s) => s.data.tasks.filter((t) => !t.recurrence && !t.done && t.date !== null && t.date < s.today).length);
+  const tags = useApp((s) => s.data.tags);
   const [text, setText] = useState('');
   const [where, setWhere] = useState<Where>('today');
 
@@ -39,6 +41,12 @@ export function QuickBar() {
     if (parsed.color && parsed.color !== 'none') {
       const m = MARKERS[parsed.color];
       chips.push({ key: 'color', label: COLOR_LABELS[parsed.color].toLowerCase(), style: { background: m.bg, color: m.ink, borderColor: 'transparent' } });
+    }
+    if (parsed.tag) {
+      // существующий тэг — в его написании и цвете; новый появится без цвета
+      const known = findTag({ tags }, parsed.tag);
+      const m = known && known.color !== 'none' ? MARKERS[known.color] : null;
+      chips.push({ key: 'tag', label: `#${known?.name ?? parsed.tag}`, style: m ? { background: m.bg, color: m.ink, borderColor: 'transparent' } : undefined });
     }
   }
 

@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { addDays, dayMonthShort, formatRu, isoWeekday, weekdayShortRu } from '../domain/dates';
 import { describeRecurrence } from '../domain/recurrence';
+import { addTag } from '../domain/tags';
 import { addTask, deleteTask, moveTask, skipOccurrence, toggleDone, updateTask } from '../domain/tasks';
-import { TASK_COLORS, type ISODate, type Recurrence, type RecurrenceFreq, type Task, type Weekday } from '../domain/types';
+import { type ISODate, type Recurrence, type RecurrenceFreq, type Task, type TaskColor, type Weekday } from '../domain/types';
 import { makeId } from '../domain/ids';
 import { useApp, useAppStore } from '../store/store';
 import { FILE_TOO_BIG, MAX_FILE_SIZE, deleteFile, getFile, putFile } from '../store/files';
@@ -11,7 +12,8 @@ import {
   IconRepeat, IconTick, IconTimer, IconTrash,
 } from './icons';
 import { MiniCalendar } from './MiniCalendar';
-import { COLOR_LABELS, MARKERS, REMINDER_OPTIONS, WEEKDAYS, WEEKDAY_SHORT, capitalize, downloadBlob, formatBytes } from './util';
+import { Swatches, TagDot } from './Swatches';
+import { REMINDER_OPTIONS, WEEKDAYS, WEEKDAY_SHORT, capitalize, downloadBlob, formatBytes } from './util';
 
 type Pop = null | 'date' | 'repeat' | 'reminder' | 'delete';
 
@@ -166,6 +168,72 @@ function ReminderPop({ task, onSave }: { task: Task; onSave: (time: string | nul
       </label>
       <button type="button" className="pill-btn" onClick={() => onSave(time, rem === '' ? null : Number(rem))}>Сохранить</button>
       {task.time && <button type="button" className="link-btn" onClick={() => onSave(null, null)}>Убрать время</button>}
+    </div>
+  );
+}
+
+/** Выбор тэга задачи; «Новый тэг» раскрывает форму: название + цвет. */
+function TagPicker({ task, onPick }: { task: Task; onPick: (tagId: string | null) => void }) {
+  const store = useAppStore();
+  const tags = useApp((s) => s.data.tags);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState('');
+  const [color, setColor] = useState<TaskColor>('none');
+
+  const create = () => {
+    const r = addTag(store.getState().data, name, color);
+    if (!r.tag) return;
+    const id = r.tag.id;
+    store.getState().mutate(() => updateTask(r.data, task.id, { tagId: id }));
+    setName('');
+    setColor('none');
+    setCreating(false);
+  };
+
+  const option = (id: string | null, label: string, dot?: TaskColor) => (
+    <button
+      key={id ?? 'none'}
+      type="button"
+      role="radio"
+      aria-checked={task.tagId === id}
+      aria-label={label}
+      className={`chip tag-chip${task.tagId === id ? ' is-set' : ''}`}
+      onClick={() => onPick(id)}
+    >
+      {dot && <TagDot color={dot} />}
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="ed-tags">
+      <div className="ed-tag-row">
+        <span className="ed-label" aria-hidden="true">Тэг</span>
+        <div className="ed-tag-list" role="radiogroup" aria-label="Тэг">
+          {option(null, 'Без тэга')}
+          {tags.map((t) => option(t.id, t.name, t.color))}
+        </div>
+        <button type="button" className="chip" aria-expanded={creating} onClick={() => setCreating((v) => !v)}>
+          <IconPlus size={15} /> Новый тэг
+        </button>
+      </div>
+      {creating && (
+        <div className="ed-tag-new">
+          <input
+            className="tag-input"
+            aria-label="Название тэга"
+            placeholder="Например, Спорт"
+            autoComplete="off"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); create(); } }}
+          />
+          <div className="ed-colors" role="radiogroup" aria-label="Цвет тэга">
+            <Swatches value={color} onPick={setColor} />
+          </div>
+          <button type="button" className="pill-btn" disabled={!name.trim()} onClick={create}>Создать тэг</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -389,20 +457,10 @@ export function Editor({ id, occDate }: { id: string; occDate: string | null }) 
 
         <div className="ed-colors" role="radiogroup" aria-label="Цвет">
           <span className="ed-label" aria-hidden="true">Цвет</span>
-          {TASK_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              role="radio"
-              aria-checked={task.color === c}
-              aria-label={COLOR_LABELS[c]}
-              title={COLOR_LABELS[c]}
-              className={`swatch${c === 'none' ? ' none' : ''}`}
-              style={{ background: c === 'none' ? undefined : MARKERS[c].bg }}
-              onClick={() => patch({ color: c })}
-            />
-          ))}
+          <Swatches value={task.color} onPick={(c) => patch({ color: c })} />
         </div>
+
+        <TagPicker task={task} onPick={(tagId) => patch({ tagId })} />
 
         <div className="ed-note-box">
           <AutoText className="ed-note" label="Заметка" placeholder="Добавьте подробности…" value={task.note} onChange={(v) => patch({ note: v })} />
